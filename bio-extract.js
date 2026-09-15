@@ -110,6 +110,23 @@ function parseBiography(text, nameInfo = {}) {
     },
     physical_description: [],
     family: [],
+    suffah: [],
+    demeanor: [],
+    devotion_and_worship: [],
+    poverty_and_lifestyle: [],
+    memory_techniques: [],
+    narrator_comparisons: [],
+    name_dispute_notes: [],
+    hadith_criticism: {
+      objections: [],
+      evaluations: [],
+      ibn_hajar_notes: [],
+    },
+    defense: {
+      objections: [],
+      responses: [],
+      supporters: [],
+    },
     highlights: [],
     source_refs: extractFootnoteRefs(raw),
   };
@@ -153,7 +170,28 @@ function parseBiography(text, nameInfo = {}) {
       (m) => cleanSnippet(m[1], 50),
       8
     ),
-  ]).filter((n) => n && n.length < 45);
+  ]).filter(
+    (n) =>
+      n &&
+      n.length < 45 &&
+      !/^(?:هل |قال:|لابن |في الجاهلية)/.test(n) &&
+      !/تنكر|ما يقول/.test(n)
+  );
+
+  bio.name_dispute_notes = uniq([
+    ...collectMatches(
+      flat,
+      /((?:اختلف في اسمه|اختلفوا في اسمه|في اسمه)[^.]{10,200}\.)/g,
+      (m) => cleanSnippet(m[1], 200),
+      8
+    ),
+    ...collectMatches(
+      flat,
+      /((?:اجتمع في اسمه|ثلاثين قولا|أربعة وأربعين قولا)[^.]{10,160})/g,
+      (m) => cleanSnippet(m[1], 160),
+      5
+    ),
+  ]);
 
   const kunyaWhy = flat.match(
     /كنيت\s+(?:بأبي|أبا)\s+([^\s،.]{2,30})[^.،]{0,20}(?:,|،)?\s*(?:قال\s*[:：])?\s*([^.]{10,160})/
@@ -188,6 +226,15 @@ function parseBiography(text, nameInfo = {}) {
     ),
   ]).filter((s) => !/\bأسلم بن\b/.test(s));
 
+  bio.suffah = uniq([
+    ...collectMatches(
+      flat,
+      /((?:سكن الصّ?فة|أهل الصّ?فة|الصّ?فة)[^.]{0,120})/g,
+      (m) => cleanSnippet(m[1], 140),
+      6
+    ),
+  ]);
+
   // --- companionship ---
   bio.companionship = uniq([
     ...collectMatches(
@@ -205,6 +252,33 @@ function parseBiography(text, nameInfo = {}) {
       /((?:أحفظ|أكثر الصحابة|أحرص|خير مني|أعلم بما يحدث|من علامات النبوة)[^.]{0,120})/g,
       (m) => cleanSnippet(m[1], 140),
       12
+    ),
+  ]);
+
+  bio.poverty_and_lifestyle = uniq([
+    ...collectMatches(
+      flat,
+      /((?:مسكين|الجوع|ملء بطنه|القدح واللبن|اعتمد على الأرض بكبدي)[^.]{0,120})/g,
+      (m) => cleanSnippet(m[1], 140),
+      8
+    ),
+  ]);
+
+  bio.devotion_and_worship = uniq([
+    ...collectMatches(
+      flat,
+      /((?:يسبّح|يصلّي|ركعتي الفجر|الليل أثلاثا|التسبيحة)[^.]{0,120})/g,
+      (m) => cleanSnippet(m[1], 140),
+      8
+    ),
+  ]);
+
+  bio.demeanor = uniq([
+    ...collectMatches(
+      flat,
+      /((?:شديد الوجع|لين|حشما|بيانا|جريئا على أن يسأل)[^.]{0,100})/g,
+      (m) => cleanSnippet(m[1], 120),
+      6
     ),
   ]);
 
@@ -238,6 +312,80 @@ function parseBiography(text, nameInfo = {}) {
         !/^من\s/.test(n)
     );
   }
+
+  bio.memory_techniques = uniq([
+    ...collectMatches(
+      flat,
+      /((?:بسط رداء|ضمّه|وعاءين|حفظت من|لم ينس|العلم لا ينسى)[^.]{0,140})/g,
+      (m) => cleanSnippet(m[1], 160),
+      10
+    ),
+  ]);
+
+  bio.narrator_comparisons = uniq([
+    ...collectMatches(
+      flat,
+      /((?:أكثر علينا|أكثر من|خير مني|أعلم بما|فرطنا في|لم يكن أحد)[^.]{0,140})/g,
+      (m) => cleanSnippet(m[1], 160),
+      10
+    ),
+  ]);
+
+  // --- hadith criticism ---
+  bio.hadith_criticism.objections = uniq([
+    ...collectMatches(
+      flat,
+      /((?:أكثر علينا|يكثر الحديث|الفرط في|نسوا ولم|هل تنكر|استأثرت)[^.]{0,140})/g,
+      (m) => cleanSnippet(m[1], 160),
+      12
+    ),
+  ]);
+
+  bio.hadith_criticism.evaluations = uniq([
+    ...collectMatches(
+      flat,
+      /((?:قال البخاري|قال وكيع|قال الشافعي|قال ابن عمر|قال عائشة)[^.]{0,140})/g,
+      (m) => cleanSnippet(m[1], 160),
+      12
+    ),
+  ]);
+
+  bio.hadith_criticism.ibn_hajar_notes = uniq([
+    ...collectMatches(
+      flat,
+      /((?:قلت:|قال ابن حجر|أنكر أن|الأصح أن|الظاهر أن)[^.]{0,160})/g,
+      (m) => cleanSnippet(m[1], 180),
+      10
+    ),
+  ]);
+
+  // --- defense ---
+  bio.defense.objections = uniq([
+    ...collectMatches(
+      flat,
+      /((?:إنكم تزعمون|قيل له أكثرت|غضب مروان|سأله.*أكثر)[^.]{0,140})/g,
+      (m) => cleanSnippet(m[1], 160),
+      8
+    ),
+  ]);
+
+  bio.defense.responses = uniq([
+    ...collectMatches(
+      flat,
+      /((?:ما ذنبي إن كنت حفظت|حفظت ونسوا|صدق.*كذب|بثثته|اللَّه الموعد|كنت امرأ مسكينا)[^.]{0,160})/g,
+      (m) => cleanSnippet(m[1], 180),
+      12
+    ),
+  ]);
+
+  bio.defense.supporters = uniq([
+    ...collectMatches(
+      flat,
+      /((?:قال طلحة|قال ابن عمر|صدقته عائشة|زيد.*أحفظ|الشافعي.*أحفظ|وكيع)[^.]{0,140})/g,
+      (m) => cleanSnippet(m[1], 160),
+      10
+    ),
+  ]);
 
   // --- offices ---
   bio.offices = uniq([

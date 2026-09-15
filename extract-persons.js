@@ -28,6 +28,11 @@ const {
   parseCrossRefs,
   QISM_LABEL,
 } = require('./book-structure');
+const {
+  buildCompanionRecord,
+  SCHEMA_VERSION,
+  SCHEMA_SECTIONS,
+} = require('./companion-schema');
 
 const ENTRY_RE = /^(\d+)\s*[-–—]\s*(.+?)\s*$/;
 const FOOTNOTE_RE = /\s*\[\s*\(\d+\)\s*\]/g;
@@ -445,43 +450,27 @@ function toRecord(
   }
   const parsed = enrichName(book, person, fullText || undefined);
   const place = person.placement || {};
-  const rec = {
-    number: person.number,
-    name: person.name,
-    full_name: parsed.full_name,
-    ism: parsed.ism,
-    father: parsed.father,
-    grandfather: parsed.grandfather,
-    great_grandfather: parsed.great_grandfather,
-    nasab: parsed.nasab,
-    nisba: parsed.nisba,
-    name_source: parsed.name_source,
-    placement: {
-      volume_toc: place.volume || null,
-      volume_print: person.volume,
-      section_type: place.section_type || null,
-      letter: place.letter || null,
-      qism: place.qism || null,
-      qism_label: place.qism_label || (place.qism ? QISM_LABEL[place.qism] : null),
-      qism_title: place.qism_title || null,
-      bab: place.bab || null,
-      toc_path: place.toc_path || [],
-    },
-    ruling: {
-      ibn_hajar_grade: place.qism || null,
-      grade_meaning: place.qism_label || null,
-      in_kunya_book: place.section_type === 'kunya',
-      in_women_book: place.section_type === 'women',
-    },
-    volume: person.volume,
-    page_start: person.page_start,
-    page_end: person.page_end,
-    start_id: person.start_id,
-    end_id: person.end_id,
+  const placement = {
+    volume: place.volume || null,
+    section_type: place.section_type || null,
+    letter: place.letter || null,
+    qism: place.qism || null,
+    qism_label: place.qism_label || (place.qism ? QISM_LABEL[place.qism] : null),
+    qism_title: place.qism_title || null,
+    bab: place.bab || null,
+    toc_path: place.toc_path || [],
+  };
+  const ruling = {
+    ibn_hajar_grade: place.qism || null,
+    grade_meaning: placement.qism_label || null,
+    in_kunya_book: place.section_type === 'kunya',
+    in_women_book: place.section_type === 'women',
   };
   const textForBio = fullText || '';
+  let bio = {};
+  let crossRefs = [];
   if (withBio && textForBio) {
-    rec.bio = parseBiography(textForBio, {
+    bio = parseBiography(textForBio, {
       name: person.name,
       full_name: parsed.full_name,
       ism: parsed.ism,
@@ -489,16 +478,43 @@ function toRecord(
     });
   }
   if (withCrossRefs && textForBio) {
-    rec.cross_refs = parseCrossRefs(textForBio, person.number);
+    crossRefs = parseCrossRefs(textForBio, person.number);
   }
+  const rec = buildCompanionRecord({
+    person,
+    parsed,
+    bio,
+    crossRefs,
+    placement,
+    ruling,
+  });
   // Full raw text intentionally omitted from JSON exports.
-  // Optional short excerpt only when explicitly requested via withText.
   if (withText && textForBio) {
     let excerpt = textForBio.slice(0, maxChars > 0 ? maxChars : 280).replace(/\s+/g, ' ').trim();
     if (maxChars > 0 && textForBio.length > maxChars) excerpt += '…';
-    rec.excerpt = excerpt;
+    rec._excerpt = excerpt;
   }
   return rec;
+}
+
+function indexRowFromRecord(rec) {
+  const cat = rec.categorization_and_identity;
+  const nasab = cat.nasab || {};
+  const place = cat.placement || {};
+  return {
+    number: rec.id.number,
+    name: cat.names.display,
+    full_name: nasab.full_name,
+    ism: nasab.ism,
+    father: nasab.father,
+    grandfather: nasab.grandfather,
+    qism: cat.ibn_hajar_category,
+    letter: place.letter,
+    section_type: cat.section_type,
+    volume: place.volume_print,
+    page_start: place.page_start,
+    page_end: place.page_end,
+  };
 }
 
 /** Stream large export to avoid holding entire JSON in RAM */
@@ -528,6 +544,9 @@ function exportPersonsStream(
   return (async () => {
     await write('{\n');
     await write(`  "source": ${JSON.stringify(book.meta, null, 2).replace(/\n/g, '\n  ')},\n`);
+    await write(
+      `  "schema": ${JSON.stringify({ version: SCHEMA_VERSION, sections: SCHEMA_SECTIONS }, null, 2).replace(/\n/g, '\n  ')},\n`
+    );
     await write(`  "count": ${persons.length},\n`);
     await write('  "persons": [\n');
     const t0 = Date.now();
@@ -723,30 +742,19 @@ async function main() {
   }
 
   if (args.cmd === 'list') {
-    const rows = book.persons.map((p) => {
-      const rec = toRecord(book, p, {
-        withText: false,
-        withBio: false,
-        withCrossRefs: false,
-      });
-      return {
-        number: rec.number,
-        name: rec.name,
-        full_name: rec.full_name,
-        ism: rec.ism,
-        father: rec.father,
-        grandfather: rec.grandfather,
-        qism: rec.placement.qism,
-        letter: rec.placement.letter,
-        section_type: rec.placement.section_type,
-        volume: rec.volume,
-        page_start: rec.page_start,
-        page_end: rec.page_end,
-      };
-    });
+    const rows = book.persons.map((p) =>
+      indexRowFromRecord(
+        toRecord(book, p, {
+          withText: false,
+          withBio: false,
+          withCrossRefs: false,
+        })
+      )
+    );
     writeOut(
       {
         source: book.meta,
+        schema: { version: SCHEMA_VERSION, sections: SCHEMA_SECTIONS },
         coverage: book.coverage,
         count: rows.length,
         persons: rows,
@@ -769,6 +777,7 @@ async function main() {
     writeOut(
       {
         source: book.meta,
+        schema: { version: SCHEMA_VERSION, sections: SCHEMA_SECTIONS },
         layers: {
           qism_labels: book.qism_labels,
           coverage: book.coverage,
@@ -798,6 +807,7 @@ async function main() {
     writeOut(
       {
         source: book.meta,
+        schema: { version: SCHEMA_VERSION, sections: SCHEMA_SECTIONS },
         query: args.query,
         count: hits.length,
         results: hits.map((p) =>
@@ -839,6 +849,7 @@ async function main() {
     writeOut(
       {
         source: book.meta,
+        schema: { version: SCHEMA_VERSION, sections: SCHEMA_SECTIONS },
         coverage: book.coverage,
         count: selected.length,
         persons: selected.map((p) =>
@@ -869,9 +880,12 @@ module.exports = {
   searchPersons,
   getText,
   toRecord,
+  indexRowFromRecord,
   parseFullName,
   normalizeArabic,
   expandQuery,
   parseBiography,
   parseCrossRefs,
+  SCHEMA_VERSION,
+  SCHEMA_SECTIONS,
 };
