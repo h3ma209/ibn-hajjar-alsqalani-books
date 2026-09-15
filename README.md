@@ -1,8 +1,28 @@
 # sahihh-tree-db
 
-Structured JSON extraction from **al-Isābah fī Tamyīz al-Ṣaḥābah** (Ibn Ḥajar) Shamela `.bok` database.
+A structured biographical database for Islamic hadith scholarship — turning classical Arabic reference works into searchable, machine-readable JSON.
 
-Source: ~9,730 companion entries. No raw biography text in exports — structured fields only.
+## About
+
+Classical rijāl and ṣaḥāba works (Ibn Ḥajar, al-Bukhārī, Ibn Saʿd, al-Dhahabī, etc.) hold the identity, reliability, and relationships of thousands of narrators. Today that knowledge lives in scanned PDFs and Shamela databases: rich text, but hard to query, link, or build on.
+
+**sahihh-tree-db** extracts that text into a consistent schema — names, nasab, Ibn Ḥajar's categories, biographical facts, hadith criticism, and narrator networks — so you can search persons, export full records, and eventually connect them across books into one graph.
+
+### Current scope
+
+The first source is **al-Isābah fī Tamyīz al-Ṣaḥābah** by Ibn Ḥajar al-ʿAsqalānī (~9,730 companions), parsed from a Shamela `.bok` file. Each entry is split into seven sections (identity, biography, traits, criticism, narrator status, network, defenses) instead of dumping raw Arabic prose.
+
+### Planned direction
+
+- **Tahdhib al-Tahdhib** — narrators beyond the ṣaḥāba (tabiʿīn, scholars, grades)
+- **Cross-book entity linking** — one person ID across Isābah, Tahdhib, Tabaqāt, etc.
+- **Isnād / narrator tree** — who narrated from whom, built on structured `narrator_network` fields
+
+### What this is not
+
+- Not a PDF OCR project — source text comes from clean Shamela Jet databases
+- Not a full translation or tafsīr of the books — structured extraction only
+- Not limited to ṣaḥāba long-term — Isābah is phase one
 
 ## Setup
 

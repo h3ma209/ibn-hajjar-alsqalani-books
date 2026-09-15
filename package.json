@@ -1,5 +1,6 @@
 {
   "name": "sahihh-tree-db",
+  "description": "Structured JSON extraction of Islamic biographical and rijal works from Shamela .bok databases",
   "private": true,
   "scripts": {
     "extract": "node extract-persons.js",
