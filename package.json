@@ -1,0 +1,19 @@
+{
+  "name": "sahihh-tree-db",
+  "private": true,
+  "scripts": {
+    "extract": "node extract-persons.js",
+    "search": "node extract-persons.js search",
+    "get": "node extract-persons.js get",
+    "list-persons": "node extract-persons.js list --out persons-index.json",
+    "structure": "node extract-persons.js structure --out book-structure.json",
+    "abu-huraira": "node extract-persons.js get 10680 --out abu-huraira.json"
+  },
+  "dependencies": {
+    "iconv-lite": "^0.7.3",
+    "mdb-reader": "^3.2.0",
+    "pdf-parse": "^2.4.5",
+    "pdfjs-dist": "^6.3.289",
+    "pdfkit": "^0.20.2"
+  }
+}

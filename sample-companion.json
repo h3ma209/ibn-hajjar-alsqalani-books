@@ -1,0 +1,30 @@
+{
+  "source": {
+    "book_ar": "الإصابة في تمييز الصحابة",
+    "book_en": "al-Isabah fi Tamyiz al-Sahabah",
+    "author": "ابن حجر العسقلاني (Ibn Hajar al-Asqalani)",
+    "edition": "دار الكتب العلمية - بيروت، ط1، 1415هـ / 1995م",
+    "editors": [
+      "عادل أحمد عبد الموجود",
+      "علي محمد معوض"
+    ],
+    "approximate_entries": 12308,
+    "pdf_file": "al-isabah-vol1-text.pdf",
+    "pdf_url": "https://archive.org/download/01_20210928_20210928_1802/01_text.pdf",
+    "archive_item": "https://archive.org/details/01_20210928_20210928_1802",
+    "format": "Additional Text PDF — text already embedded/extractable (no OCR step)",
+    "sample_text_url": "https://shamela.ws/book/9767/249"
+  },
+  "sample_entry": {
+    "id": 251,
+    "id_arabic": "٢٥١",
+    "name": "امرؤ القيس بن الفاخر",
+    "name_full": "امرؤ القيس بن الفاخر بن الطماح الخولاني، أبو شرحبيل",
+    "excerpt": "امرؤ القيس بن الفاخر بن الطماح الخولانيّ، أبو شرحبيل. شهد فتح مصر، وله ذكر في الصحابة، قال ابن مندة: قاله لي أبو سعيد بن يونس. قلت: لم أر في تاريخ ابن يونس التصريح بأنه من الصحابة.",
+    "volume": 1,
+    "page": 264,
+    "section": "حرف الألف"
+  },
+  "test": true,
+  "created_at": "2026-09-15T15:08:47.229Z"
+}
