@@ -1,20 +1,29 @@
 {
-  "name": "sahihh-tree-db",
-  "description": "Structured JSON extraction of Islamic biographical and rijal works from Shamela .bok databases",
+  "name": "isabah-corpus",
+  "version": "2.0.0",
+  "description": "Structured JSONL corpus extracted from Ibn Hajar's al-Isabah fi Tamyiz al-Sahabah (Shamela .bok)",
   "private": true,
+  "engines": {
+    "node": ">=18"
+  },
   "scripts": {
-    "extract": "node extract-persons.js",
-    "search": "node extract-persons.js search",
-    "get": "node extract-persons.js get",
-    "list-persons": "node extract-persons.js list --out persons-index.json",
-    "structure": "node extract-persons.js structure --out book-structure.json",
-    "abu-huraira": "node extract-persons.js get 10680 --out abu-huraira.json"
+    "ingest": "node src/cli.js ingest",
+    "build": "node src/cli.js build",
+    "extract": "node src/cli.js extract",
+    "graph": "node src/cli.js graph",
+    "validate": "node src/cli.js validate",
+    "gate": "node src/cli.js gate",
+    "stats": "node src/cli.js stats",
+    "structure": "node src/cli.js structure",
+    "search": "node src/cli.js search",
+    "get": "node src/cli.js get",
+    "samples": "node src/cli.js samples",
+    "test": "node --test tests/"
   },
   "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
     "iconv-lite": "^0.7.3",
-    "mdb-reader": "^3.2.0",
-    "pdf-parse": "^2.4.5",
-    "pdfjs-dist": "^6.3.289",
-    "pdfkit": "^0.20.2"
+    "mdb-reader": "^3.2.0"
   }
 }
