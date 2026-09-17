@@ -1,0 +1,30 @@
+{
+  "name": "isabah-corpus",
+  "version": "2.0.0",
+  "private": true,
+  "description": "Reproducible JSONL corpus extracted from Ibn Hajar al-Asqalani's al-Isabah fi Tamyiz al-Sahabah",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "ingest": "node src/cli.js ingest",
+    "build": "node src/cli.js build",
+    "extract": "node src/cli.js extract",
+    "graph": "node src/cli.js graph",
+    "validate": "node src/cli.js validate",
+    "gate": "node src/cli.js gate",
+    "stats": "node src/cli.js stats",
+    "get": "node src/cli.js get",
+    "search": "node src/cli.js search",
+    "samples": "node src/cli.js samples",
+    "pipeline": "node src/cli.js ingest && node src/cli.js build && node src/cli.js graph && node src/cli.js validate && node src/cli.js gate",
+    "ui": "node src/ui/server.js",
+    "test": "node --test \"tests/**/*.test.js\""
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "iconv-lite": "^0.7.3",
+    "mdb-reader": "^3.2.0"
+  }
+}

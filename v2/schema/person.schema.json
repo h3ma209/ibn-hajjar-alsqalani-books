@@ -1,0 +1,224 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/person.schema.json",
+  "title": "Companion record",
+  "description": "One entry from al-Isabah. Structural fields are deterministic; life and narration fields are extracted and always carry provenance.",
+  "type": "object",
+  "required": [
+    "schema_version",
+    "person_id",
+    "book",
+    "entry",
+    "identity",
+    "classification",
+    "life",
+    "narration",
+    "extraction"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": { "type": "string", "const": "2.0.0" },
+    "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+
+    "book": {
+      "type": "object",
+      "required": ["slug", "book_id"],
+      "additionalProperties": false,
+      "properties": {
+        "slug": { "type": "string" },
+        "book_id": { "type": ["integer", "null"] }
+      }
+    },
+
+    "entry": {
+      "type": "object",
+      "required": ["number", "number_is_ambiguous", "start_id", "end_id"],
+      "additionalProperties": false,
+      "properties": {
+        "number": { "type": "integer", "minimum": 1 },
+        "number_is_ambiguous": {
+          "type": "boolean",
+          "description": "True when the source reuses this entry number for more than one person"
+        },
+        "start_id": { "type": "integer" },
+        "end_id": { "type": "integer" },
+        "volume": { "type": ["string", "null"] },
+        "page_start": { "type": ["integer", "null"] },
+        "page_end": { "type": ["integer", "null"] },
+        "char_len": { "type": "integer", "minimum": 0 }
+      }
+    },
+
+    "identity": {
+      "type": "object",
+      "required": ["display_name", "nasab", "is_woman"],
+      "additionalProperties": false,
+      "properties": {
+        "display_name": { "type": "string", "minLength": 1 },
+        "display_name_norm": { "type": "string" },
+        "kunya": { "type": ["string", "null"] },
+        "is_woman": { "type": "boolean" },
+        "nasab": {
+          "type": "object",
+          "required": ["chain", "full_name", "source", "confidence"],
+          "additionalProperties": false,
+          "properties": {
+            "ism": { "type": ["string", "null"] },
+            "father": { "type": ["string", "null"] },
+            "grandfather": { "type": ["string", "null"] },
+            "great_grandfather": { "type": ["string", "null"] },
+            "chain": { "type": "array", "items": { "type": "string" }, "maxItems": 25 },
+            "links": { "type": "array", "items": { "type": "string" } },
+            "nisba": { "type": "array", "items": { "type": "string" } },
+            "full_name": { "type": ["string", "null"] },
+            "full_name_norm": { "type": ["string", "null"] },
+            "source": { "type": "string", "enum": ["heading", "ismuhu", "toc"] },
+            "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+            "rejected_reason": {
+              "type": ["string", "null"],
+              "description": "Why the parsed chain was discarded in favour of the TOC name"
+            },
+            "link_count": { "type": "integer", "minimum": 0 }
+          }
+        },
+        "alternate_names": {
+          "type": "array",
+          "items": { "$ref": "fact.schema.json#/$defs/fact" }
+        },
+        "name_dispute_notes": {
+          "type": "array",
+          "items": { "$ref": "fact.schema.json#/$defs/fact" }
+        }
+      }
+    },
+
+    "classification": {
+      "type": "object",
+      "required": ["qism", "section_type"],
+      "additionalProperties": false,
+      "properties": {
+        "qism": {
+          "type": ["integer", "null"],
+          "enum": [1, 2, 3, 4, null],
+          "description": "Ibn Hajar's four-way division by strength of established companionship"
+        },
+        "qism_label": { "type": ["string", "null"] },
+        "qism_heading": {
+          "type": ["string", "null"],
+          "description": "The verbatim qism heading in the TOC, kept separate from toc_heading"
+        },
+        "section_type": {
+          "type": "string",
+          "enum": ["names", "kunya", "women", "intro", "other"]
+        },
+        "letter": { "type": ["string", "null"] },
+        "bab": { "type": ["string", "null"] },
+        "volume_toc": { "type": ["string", "null"] },
+        "toc_heading": {
+          "type": ["string", "null"],
+          "description": "Nearest TOC node title. Navigational only; never a scholarly claim."
+        },
+        "toc_path": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "life": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "summary": { "anyOf": [{ "$ref": "fact.schema.json#/$defs/fact" }, { "type": "null" }] },
+        "birth": { "$ref": "#/$defs/lifeEvent" },
+        "death": { "$ref": "#/$defs/lifeEvent" },
+        "conversion": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } },
+        "companionship": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } },
+        "battles": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/vocabFact" } },
+        "offices": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/officeFact" } },
+        "family": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/familyFact" } },
+        "residences": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/vocabFact" } },
+        "traits": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } }
+      }
+    },
+
+    "narration": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "is_prolific": { "type": "boolean" },
+        "hadith_count": {
+          "anyOf": [{ "$ref": "fact.schema.json#/$defs/fact" }, { "type": "null" }]
+        },
+        "narrated_from": {
+          "type": "array",
+          "items": { "$ref": "fact.schema.json#/$defs/namedFact" }
+        },
+        "narrated_to": {
+          "type": "array",
+          "items": { "$ref": "fact.schema.json#/$defs/namedFact" }
+        },
+        "praise": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } },
+        "criticism": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } },
+        "defenses": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } }
+      }
+    },
+
+    "extraction": {
+      "type": "object",
+      "required": ["layers"],
+      "additionalProperties": false,
+      "properties": {
+        "layers": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["structural", "regex", "llm"] }
+        },
+        "llm": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "model": { "type": "string" },
+            "prompt_version": { "type": "string" },
+            "chunks": { "type": "integer", "minimum": 1 },
+            "extracted_at": { "type": "string" },
+            "truncated": { "type": "boolean" }
+          }
+        },
+        "regex": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "version": { "type": "string" },
+            "extracted_at": { "type": "string" }
+          }
+        }
+      }
+    }
+  },
+
+  "$defs": {
+    "hijriYear": {
+      "type": ["integer", "null"],
+      "minimum": -100,
+      "maximum": 1500,
+      "description": "Hijri year. Negative values are years before the Hijra, which many Companions' birth dates require (the entry may date a birth relative to the Prophetic mission)."
+    },
+    "lifeEvent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "year_hijri": { "$ref": "#/$defs/hijriYear" },
+        "year_uncertain": {
+          "type": "boolean",
+          "description": "True when the source reports competing years or hedges the date"
+        },
+        "year_candidates": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/hijriYear" },
+          "description": "All years the source mentions for this event"
+        },
+        "place": { "type": ["string", "null"] },
+        "place_key": { "type": ["string", "null"] },
+        "cause": { "type": ["string", "null"] },
+        "notes": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } }
+      }
+    }
+  }
+}
