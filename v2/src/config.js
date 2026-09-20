@@ -65,8 +65,9 @@ const LLM = {
   apiKey: process.env.OPENAI_API_KEY || null,
   baseUrl: (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, ''),
   model: process.env.LLM_MODEL || 'gpt-4o-mini',
-  concurrency: Math.max(1, num(process.env.LLM_CONCURRENCY, 6)),
-  maxTokens: Math.max(256, num(process.env.LLM_MAX_TOKENS, 4096)),
+  concurrency: Math.max(1, num(process.env.LLM_CONCURRENCY, 8)),
+  /** p90 completion is ~630 tokens; 2048 leaves headroom without slowing generation. */
+  maxTokens: Math.max(256, num(process.env.LLM_MAX_TOKENS, 2048)),
   maxCostUsd: num(process.env.LLM_MAX_COST, 15),
   priceInputPerMTok: num(process.env.LLM_PRICE_INPUT_PER_MTOK, 0.15),
   priceOutputPerMTok: num(process.env.LLM_PRICE_OUTPUT_PER_MTOK, 0.6),
