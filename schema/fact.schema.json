@@ -1,0 +1,95 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/fact.schema.json",
+  "title": "Fact primitives",
+  "description": "Every extracted claim carries where it came from, the verbatim text that supports it, and how confident the extractor was. Nothing in this corpus is an unattributed assertion.",
+  "$defs": {
+    "source": {
+      "type": "string",
+      "enum": ["structural", "regex", "llm"],
+      "description": "structural = derived deterministically from the book's own markup; regex = heuristic pattern match; llm = model extraction"
+    },
+    "fact": {
+      "type": "object",
+      "required": ["value", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "source": { "$ref": "#/$defs/source" },
+        "evidence": {
+          "type": ["string", "null"],
+          "description": "Verbatim Arabic from the entry that supports the value"
+        },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "page": { "type": ["integer", "null"] }
+      }
+    },
+    "namedFact": {
+      "type": "object",
+      "required": ["value", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "normalized": { "type": ["string", "null"] },
+        "source": { "$ref": "#/$defs/source" },
+        "evidence": { "type": ["string", "null"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "page": { "type": ["integer", "null"] }
+      }
+    },
+    "vocabFact": {
+      "type": "object",
+      "required": ["value", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "key": {
+          "type": ["string", "null"],
+          "description": "Controlled-vocabulary key, null when the surface form matched nothing known"
+        },
+        "source": { "$ref": "#/$defs/source" },
+        "evidence": { "type": ["string", "null"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "page": { "type": ["integer", "null"] }
+      }
+    },
+    "officeFact": {
+      "type": "object",
+      "required": ["value", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "role": { "type": ["string", "null"] },
+        "place": { "type": ["string", "null"] },
+        "place_key": { "type": ["string", "null"] },
+        "appointed_by": { "type": ["string", "null"] },
+        "period": { "type": ["string", "null"] },
+        "source": { "$ref": "#/$defs/source" },
+        "evidence": { "type": ["string", "null"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "page": { "type": ["integer", "null"] }
+      }
+    },
+    "familyFact": {
+      "type": "object",
+      "required": ["value", "source", "confidence"],
+      "additionalProperties": false,
+      "properties": {
+        "value": { "type": "string", "minLength": 1 },
+        "relation": {
+          "type": ["string", "null"],
+          "enum": [
+            "father", "mother", "son", "daughter", "brother", "sister",
+            "wife", "husband", "grandfather", "grandmother", "uncle", "aunt",
+            "cousin", "descendant", "client", "other", null
+          ]
+        },
+        "name": { "type": ["string", "null"] },
+        "source": { "$ref": "#/$defs/source" },
+        "evidence": { "type": ["string", "null"] },
+        "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+        "page": { "type": ["integer", "null"] }
+      }
+    }
+  }
+}

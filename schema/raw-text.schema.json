@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/raw-text.schema.json",
+  "title": "Raw entry text",
+  "description": "Canonical preserved source text for one biographical entry. Every downstream layer reads from this file, so a bad extraction is always recoverable without re-reading the .bok.",
+  "type": "object",
+  "required": [
+    "person_id",
+    "entry_number",
+    "start_id",
+    "end_id",
+    "text",
+    "text_body",
+    "footnotes",
+    "char_len"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "entry_number": { "type": "integer", "minimum": 1 },
+    "start_id": { "type": "integer", "minimum": 0 },
+    "end_id": { "type": "integer", "minimum": 0 },
+    "volume": { "type": ["string", "null"] },
+    "page_start": { "type": ["integer", "null"] },
+    "page_end": { "type": ["integer", "null"] },
+    "display_name": { "type": "string" },
+    "text": { "type": "string" },
+    "text_body": {
+      "type": "string",
+      "description": "Entry prose with the editor's footnote apparatus removed"
+    },
+    "footnotes": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["marker", "text"],
+        "additionalProperties": false,
+        "properties": {
+          "marker": { "type": "integer" },
+          "text": { "type": "string" },
+          "page": { "type": ["integer", "null"] }
+        }
+      }
+    },
+    "char_len": { "type": "integer", "minimum": 0 },
+    "body_char_len": { "type": "integer", "minimum": 0 }
+  }
+}

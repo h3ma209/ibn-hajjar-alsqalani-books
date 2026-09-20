@@ -1,20 +1,8 @@
-node_modules
+node_modules/
 
-# secrets
+# Secrets
 .env
 api-keys.txt
 
-# generated corpus + run reports
-data/
-reports/
-
-# source book and derived binaries (see README for provenance)
-*.bok
-*.mdb
-*.rar
-*.pdf
-*.html
-
-# legacy v1 exports
-all-persons.json
-persons-index.json
+# Local editor config (optional)
+.cursor/

@@ -1,0 +1,115 @@
+{
+  "schema_version": "2.0.0",
+  "person_id": "isabah:9767:503-349",
+  "book": {
+    "slug": "isabah",
+    "book_id": 9767
+  },
+  "entry": {
+    "number": 503,
+    "number_is_ambiguous": false,
+    "start_id": 349,
+    "end_id": 349,
+    "volume": "1",
+    "page_start": 363,
+    "page_end": 363,
+    "char_len": 94
+  },
+  "identity": {
+    "display_name": "أبان العبدي",
+    "display_name_norm": "ابان العبدي",
+    "kunya": null,
+    "is_woman": false,
+    "nasab": {
+      "ism": "أبان",
+      "father": null,
+      "grandfather": null,
+      "great_grandfather": null,
+      "chain": [
+        "أبان"
+      ],
+      "links": [],
+      "nisba": [
+        "العبديّ"
+      ],
+      "full_name": "أبان العبديّ",
+      "full_name_norm": "ابان العبدي",
+      "source": "heading",
+      "confidence": 0.62,
+      "rejected_reason": null,
+      "link_count": 0
+    },
+    "alternate_names": [],
+    "name_dispute_notes": []
+  },
+  "classification": {
+    "qism": 4,
+    "qism_label": "الرابع — من ذُكر في الصحابة غلطاً أو تصحيفاً",
+    "qism_heading": "القسم الرابع من حرف الألف",
+    "section_type": "names",
+    "letter": "حرف الألف",
+    "bab": "[الألف بعدها الباء]",
+    "volume_toc": "المجلد الأول",
+    "toc_heading": "505- إبراهيم",
+    "toc_path": [
+      "المجلد الأول",
+      "حرف الألف",
+      "القسم الرابع من حرف الألف",
+      "[الألف بعدها الباء]",
+      "505- إبراهيم"
+    ]
+  },
+  "life": {
+    "summary": {
+      "value": "503- أبان العبديّ .",
+      "source": "regex",
+      "evidence": "503- أبان العبديّ .",
+      "confidence": 0.3
+    },
+    "birth": {
+      "year_hijri": null,
+      "year_candidates": [],
+      "year_uncertain": false,
+      "place": null,
+      "place_key": null,
+      "cause": null,
+      "notes": []
+    },
+    "death": {
+      "year_hijri": null,
+      "year_candidates": [],
+      "year_uncertain": false,
+      "place": null,
+      "place_key": null,
+      "cause": null,
+      "notes": []
+    },
+    "conversion": [],
+    "companionship": [],
+    "battles": [],
+    "offices": [],
+    "family": [],
+    "residences": [],
+    "traits": []
+  },
+  "narration": {
+    "is_prolific": false,
+    "hadith_count": null,
+    "narrated_from": [],
+    "narrated_to": [],
+    "praise": [],
+    "criticism": [],
+    "defenses": []
+  },
+  "extraction": {
+    "layers": [
+      "structural",
+      "regex"
+    ],
+    "llm": null,
+    "regex": {
+      "version": "regex-bio/2.0.0",
+      "extracted_at": "2026-09-17T16:15:06.558Z"
+    }
+  }
+}

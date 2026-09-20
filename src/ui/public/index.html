@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>الإصابة في تمييز الصحابة — فهرس التراجم</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Amiri:ital,wght@0,400;0,700;1,400&family=Noto+Naskh+Arabic:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <a class="skip-link" href="#app">تخطّ إلى المحتوى</a>
+    <header class="masthead">
+      <div class="masthead-inner">
+        <a class="brand" href="#/">
+          <span class="brand-mark" aria-hidden="true">إ</span>
+          <span class="brand-text">
+            <span class="brand-eyebrow">ابن حجر العسقلاني</span>
+            <span class="brand-title">الإصابة في تمييز الصحابة</span>
+          </span>
+        </a>
+        <form class="search" id="search-form" role="search">
+          <span class="search-icon" id="search-icon" aria-hidden="true"></span>
+          <label class="sr-only" for="q">بحث في التراجم</label>
+          <input
+            id="q"
+            type="search"
+            name="q"
+            placeholder="ابحث بالاسم أو رقم الترجمة…"
+            autocomplete="off"
+            spellcheck="false"
+          />
+          <kbd class="search-hint" aria-hidden="true">/</kbd>
+          <button type="submit">بحث</button>
+        </form>
+        <nav class="nav" aria-label="التنقل الرئيسي">
+          <a href="#/" data-nav="overview"><span class="nav-ico" data-ico="home"></span>الفهرس</a>
+          <a href="#/browse" data-nav="browse"><span class="nav-ico" data-ico="list"></span>التراجم</a>
+          <a href="#/quality" data-nav="quality"><span class="nav-ico" data-ico="chart"></span>الجودة</a>
+        </nav>
+      </div>
+    </header>
+    <main id="app"><div class="loading-state"><div class="spinner"></div><p>يُحمَّل الفهرس…</p></div></main>
+    <footer class="foot" id="foot" hidden>
+      <span id="foot-text"></span>
+    </footer>
+    <script>
+      (function () {
+        if (window.__isabahBooted) return;
+        window.__isabahBooted = true;
+        var app = document.getElementById('app');
+        function fail(msg) {
+          app.innerHTML =
+            '<div class="empty-state"><p>' + msg + '</p><p class="muted">جرّب إعادة تحميل الصفحة أو npm run ui</p></div>';
+        }
+        window.addEventListener('error', function (e) {
+          if (app.querySelector('.loading-state')) {
+            fail('تعذّر تحميل الواجهة: ' + (e.message || 'خطأ غير معروف'));
+          }
+        });
+        function load(src) {
+          return new Promise(function (resolve, reject) {
+            var s = document.createElement('script');
+            s.src = src;
+            s.async = false;
+            s.onload = resolve;
+            s.onerror = function () {
+              reject(new Error('failed to load ' + src));
+            };
+            document.head.appendChild(s);
+          });
+        }
+        load('/icons.js')
+          .then(function () {
+            return load('/app.js');
+          })
+          .catch(function (e) {
+            fail('تعذّر تحميل الواجهة: ' + e.message);
+          });
+      })();
+    </script>
+  </body>
+</html>
