@@ -20,6 +20,11 @@ const SCHEMA_FILES = [
   'person.schema.json',
   'edge.schema.json',
   'citation.schema.json',
+  'index.schema.json',
+  'chapter.schema.json',
+  'passage-label.schema.json',
+  'event.schema.json',
+  'name.schema.json',
 ];
 
 let ajv = null;
@@ -41,6 +46,11 @@ const SCHEMA_IDS = {
   rawText: 'https://isabah-corpus.local/schema/raw-text.schema.json',
   edge: 'https://isabah-corpus.local/schema/edge.schema.json',
   citation: 'https://isabah-corpus.local/schema/citation.schema.json',
+  index: 'https://isabah-corpus.local/schema/index.schema.json',
+  chapter: 'https://isabah-corpus.local/schema/chapter.schema.json',
+  passageLabel: 'https://isabah-corpus.local/schema/passage-label.schema.json',
+  event: 'https://isabah-corpus.local/schema/event.schema.json',
+  name: 'https://isabah-corpus.local/schema/name.schema.json',
 };
 
 function validatorFor(kind) {

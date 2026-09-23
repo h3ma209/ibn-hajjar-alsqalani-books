@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/passage-label.schema.json",
+  "title": "Passage label",
+  "description": "A labeled character span inside one entry's text_body. Every sentence should have at least one label; leftover prose is unlabeled.",
+  "type": "object",
+  "required": ["person_id", "start", "end", "label", "source", "confidence", "quote"],
+  "additionalProperties": false,
+  "properties": {
+    "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "start": { "type": "integer", "minimum": 0 },
+    "end": { "type": "integer", "minimum": 0 },
+    "label": {
+      "type": "string",
+      "enum": [
+        "nasab", "name_dispute", "isnad", "hadith_matn", "citation", "crossref",
+        "battle", "event", "death", "birth", "age", "office", "family",
+        "praise", "criticism", "defense", "ibn_hajar_voice", "poetry", "quran",
+        "editor_footnote", "heading", "boilerplate", "unlabeled"
+      ]
+    },
+    "source": { "$ref": "fact.schema.json#/$defs/source" },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "quote": { "type": "string" }
+  }
+}

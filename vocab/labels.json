@@ -1,0 +1,19 @@
+{
+  "description": "Person-level controlled labels derived from classified fields and text cues.",
+  "terms": [
+    { "key": "badi", "label_ar": "بدري", "aliases": ["بدري", "من أهل بدر"] },
+    { "key": "muhajir", "label_ar": "مهاجر", "aliases": ["مهاجر", "المهاجرين"] },
+    { "key": "ansari", "label_ar": "أنصاري", "aliases": ["أنصاري", "الأنصار"] },
+    { "key": "qurashi", "label_ar": "قرشي", "aliases": ["قرشي"] },
+    { "key": "mukthir", "label_ar": "مكثر", "aliases": ["المكثرين", "كثير الحديث"] },
+    { "key": "shahid", "label_ar": "شهيد", "aliases": ["استشهد", "شهيد"] },
+    { "key": "qadi", "label_ar": "قاض", "aliases": ["قاض", "قاضي"] },
+    { "key": "name_disputed", "label_ar": "اسم مختلف", "aliases": ["اختلف في اسمه"] },
+    { "key": "added_zay", "label_ar": "زيادة ز", "aliases": [] },
+    { "key": "qism4", "label_ar": "القسم الرابع", "aliases": [] },
+    { "key": "woman", "label_ar": "امرأة", "aliases": [] },
+    { "key": "fought", "label_ar": "شهد قتالا", "aliases": [] },
+    { "key": "has_isnad", "label_ar": "فيه إسناد", "aliases": [] },
+    { "key": "mawla", "label_ar": "مولى", "aliases": ["مولى"] }
+  ]
+}

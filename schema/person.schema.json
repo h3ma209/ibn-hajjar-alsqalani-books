@@ -2,7 +2,7 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://isabah-corpus.local/schema/person.schema.json",
   "title": "Companion record",
-  "description": "One entry from al-Isabah. Structural fields are deterministic; life and narration fields are extracted and always carry provenance.",
+  "description": "One entry from al-Isabah. Structural fields are deterministic; life and narration fields are extracted and always carry provenance. v3 adds typed kinds, events, labels, and features.",
   "type": "object",
   "required": [
     "schema_version",
@@ -13,11 +13,13 @@
     "classification",
     "life",
     "narration",
+    "labels",
+    "features",
     "extraction"
   ],
   "additionalProperties": false,
   "properties": {
-    "schema_version": { "type": "string", "const": "2.0.0" },
+    "schema_version": { "type": "string", "const": "3.0.0" },
     "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
 
     "book": {
@@ -32,7 +34,7 @@
 
     "entry": {
       "type": "object",
-      "required": ["number", "number_is_ambiguous", "start_id", "end_id"],
+      "required": ["number", "number_is_ambiguous", "start_id", "end_id", "marker", "length_class", "kind", "flags"],
       "additionalProperties": false,
       "properties": {
         "number": { "type": "integer", "minimum": 1 },
@@ -45,19 +47,57 @@
         "volume": { "type": ["string", "null"] },
         "page_start": { "type": ["integer", "null"] },
         "page_end": { "type": ["integer", "null"] },
-        "char_len": { "type": "integer", "minimum": 0 }
+        "char_len": { "type": "integer", "minimum": 0 },
+        "marker": {
+          "type": ["string", "null"],
+          "description": "Shamela sub-marker between number and dash, e.g. ز for later additions"
+        },
+        "length_class": { "type": "string", "enum": ["stub", "short", "medium", "long"] },
+        "kind": {
+          "type": "string",
+          "enum": ["biography", "crossref_stub", "name_only", "kunya_redirect", "qism4_refutation"]
+        },
+        "flags": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": [
+              "has_isnad",
+              "has_name_dispute",
+              "has_ibn_hajar_voice",
+              "has_poetry",
+              "has_hadith_matn",
+              "footnote_heavy"
+            ]
+          }
+        },
+        "footnotes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["marker", "text"],
+            "additionalProperties": false,
+            "properties": {
+              "marker": { "type": "integer" },
+              "text": { "type": "string" },
+              "page": { "type": ["integer", "null"] }
+            }
+          }
+        }
       }
     },
 
     "identity": {
       "type": "object",
-      "required": ["display_name", "nasab", "is_woman"],
+      "required": ["display_name", "nasab", "is_woman", "laqab", "ism_status"],
       "additionalProperties": false,
       "properties": {
         "display_name": { "type": "string", "minLength": 1 },
         "display_name_norm": { "type": "string" },
         "kunya": { "type": ["string", "null"] },
+        "laqab": { "type": ["string", "null"] },
         "is_woman": { "type": "boolean" },
+        "ism_status": { "type": "string", "enum": ["agreed", "disputed", "unknown"] },
         "nasab": {
           "type": "object",
           "required": ["chain", "full_name", "source", "confidence"],
@@ -83,18 +123,29 @@
         },
         "alternate_names": {
           "type": "array",
-          "items": { "$ref": "fact.schema.json#/$defs/fact" }
+          "items": { "$ref": "fact.schema.json#/$defs/kindedFact" }
         },
         "name_dispute_notes": {
           "type": "array",
-          "items": { "$ref": "fact.schema.json#/$defs/fact" }
+          "items": { "$ref": "fact.schema.json#/$defs/kindedFact" }
         }
       }
     },
 
     "classification": {
       "type": "object",
-      "required": ["qism", "section_type"],
+      "required": [
+        "qism",
+        "section_type",
+        "entry_kind",
+        "companionship_status",
+        "generation",
+        "origin",
+        "status",
+        "tribe_keys",
+        "nisba_keys",
+        "gender_source"
+      ],
       "additionalProperties": false,
       "properties": {
         "qism": {
@@ -118,7 +169,33 @@
           "type": ["string", "null"],
           "description": "Nearest TOC node title. Navigational only; never a scholarly claim."
         },
-        "toc_path": { "type": "array", "items": { "type": "string" } }
+        "toc_path": { "type": "array", "items": { "type": "string" } },
+        "entry_kind": {
+          "type": "string",
+          "enum": ["biography", "crossref_stub", "name_only", "kunya_redirect", "qism4_refutation"]
+        },
+        "companionship_status": {
+          "type": "string",
+          "enum": ["established", "vision_or_birth", "mukhadram", "listed_in_error", "disputed"]
+        },
+        "generation": {
+          "type": "string",
+          "enum": ["sahabi", "mukhadram", "tabii_mentioned", "unknown"]
+        },
+        "origin": {
+          "type": "string",
+          "enum": ["muhajir", "ansari", "other", "unknown"]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["free", "mawla", "unknown"]
+        },
+        "tribe_keys": { "type": "array", "items": { "type": "string" } },
+        "nisba_keys": { "type": "array", "items": { "type": "string" } },
+        "gender_source": {
+          "type": "string",
+          "enum": ["women_section", "grammar", "name", "explicit"]
+        }
       }
     },
 
@@ -126,16 +203,20 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "summary": { "anyOf": [{ "$ref": "fact.schema.json#/$defs/fact" }, { "type": "null" }] },
+        "summary": { "anyOf": [{ "$ref": "fact.schema.json#/$defs/kindedFact" }, { "type": "null" }] },
         "birth": { "$ref": "#/$defs/lifeEvent" },
         "death": { "$ref": "#/$defs/lifeEvent" },
-        "conversion": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } },
-        "companionship": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } },
+        "conversion": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } },
+        "companionship": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } },
         "battles": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/vocabFact" } },
         "offices": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/officeFact" } },
         "family": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/familyFact" } },
         "residences": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/vocabFact" } },
-        "traits": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } }
+        "traits": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } },
+        "events": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/eventFact" } },
+        "wounds": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } },
+        "ages": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/ageFact" } },
+        "possessions": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } }
       }
     },
 
@@ -145,7 +226,7 @@
       "properties": {
         "is_prolific": { "type": "boolean" },
         "hadith_count": {
-          "anyOf": [{ "$ref": "fact.schema.json#/$defs/fact" }, { "type": "null" }]
+          "anyOf": [{ "$ref": "fact.schema.json#/$defs/hadithCount" }, { "type": "null" }]
         },
         "narrated_from": {
           "type": "array",
@@ -155,11 +236,28 @@
           "type": "array",
           "items": { "$ref": "fact.schema.json#/$defs/namedFact" }
         },
-        "praise": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } },
-        "criticism": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } },
-        "defenses": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } }
+        "praise": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } },
+        "criticism": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } },
+        "defenses": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } },
+        "verdict_keys": { "type": "array", "items": { "type": "string" } }
       }
     },
+
+    "labels": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["key", "source", "confidence"],
+        "additionalProperties": false,
+        "properties": {
+          "key": { "type": "string" },
+          "source": { "$ref": "fact.schema.json#/$defs/source" },
+          "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+        }
+      }
+    },
+
+    "features": { "$ref": "#/$defs/features" },
 
     "extraction": {
       "type": "object",
@@ -217,7 +315,51 @@
         "place": { "type": ["string", "null"] },
         "place_key": { "type": ["string", "null"] },
         "cause": { "type": ["string", "null"] },
-        "notes": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/fact" } }
+        "cause_key": { "type": ["string", "null"] },
+        "age_years": { "type": ["integer", "null"], "minimum": 0, "maximum": 200 },
+        "notes": { "type": "array", "items": { "$ref": "fact.schema.json#/$defs/kindedFact" } }
+      }
+    },
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "n_events",
+        "n_battles",
+        "n_isnads",
+        "n_citations",
+        "n_family",
+        "n_offices",
+        "n_unlabeled_sents",
+        "fought",
+        "wounded",
+        "shahid",
+        "captive",
+        "muhajir",
+        "ansari",
+        "has_death_year",
+        "has_isnad",
+        "name_disputed",
+        "label_coverage"
+      ],
+      "properties": {
+        "n_events": { "type": "integer", "minimum": 0 },
+        "n_battles": { "type": "integer", "minimum": 0 },
+        "n_isnads": { "type": "integer", "minimum": 0 },
+        "n_citations": { "type": "integer", "minimum": 0 },
+        "n_family": { "type": "integer", "minimum": 0 },
+        "n_offices": { "type": "integer", "minimum": 0 },
+        "n_unlabeled_sents": { "type": "integer", "minimum": 0 },
+        "fought": { "type": "boolean" },
+        "wounded": { "type": "boolean" },
+        "shahid": { "type": "boolean" },
+        "captive": { "type": "boolean" },
+        "muhajir": { "type": "boolean" },
+        "ansari": { "type": "boolean" },
+        "has_death_year": { "type": "boolean" },
+        "has_isnad": { "type": "boolean" },
+        "name_disputed": { "type": "boolean" },
+        "label_coverage": { "type": "number", "minimum": 0, "maximum": 1 }
       }
     }
   }

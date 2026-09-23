@@ -1,0 +1,9 @@
+{
+  "description": "Office role keys.",
+  "terms": [
+    { "key": "amir", "label_ar": "أمير", "aliases": ["أمير", "أمّره", "أمّره", "استعمله"] },
+    { "key": "qadi", "label_ar": "قاض", "aliases": ["قاض", "قاضي", "استقضاه"] },
+    { "key": "amil", "label_ar": "عامل", "aliases": ["عامل", "عمال"] },
+    { "key": "katib", "label_ar": "كاتب", "aliases": ["كاتب", "كتب له"] }
+  ]
+}

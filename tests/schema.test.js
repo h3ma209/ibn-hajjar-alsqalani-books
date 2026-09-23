@@ -38,6 +38,7 @@ function personFrom(fixture) {
     }),
     extractionSource: 'regex',
     meta: { version: 'test', extracted_at: new Date().toISOString() },
+    entryMarker: placement.entry_marker ?? null,
   });
 }
 

@@ -969,6 +969,48 @@ button, input, select { font: inherit; color: inherit; }
 .back-link:hover { text-decoration: underline; }
 
 /* responsive */
+.filter-check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-family: var(--font-ui);
+  font-size: 0.88rem;
+  color: var(--muted);
+  padding: 0.35rem 0.6rem;
+}
+.facet-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+  gap: 0.65rem;
+}
+.facet-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  background: var(--paper-raised);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 0.85rem 1rem;
+}
+.facet-card:hover { border-color: var(--accent); }
+.facet-card .name { font-weight: 600; color: var(--ink); }
+.span-legend { display: flex; flex-wrap: wrap; gap: 0.6rem; padding: 0.6rem 1rem; }
+.span-key { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; }
+.span-key i { width: 0.7rem; height: 0.7rem; border-radius: 2px; display: inline-block; }
+mark.span-nasab, .span-key .span-nasab { background: #d8eee9; }
+mark.span-battle, .span-key .span-battle { background: #f3d4d8; }
+mark.span-event, .span-key .span-event { background: #f0e2c8; }
+mark.span-isnad, .span-key .span-isnad { background: #d6e2f2; }
+mark.span-cite, .span-key .span-cite { background: #efe3c4; }
+mark.span-crit, .span-key .span-crit { background: #f5dfc8; }
+mark.span-family, .span-key .span-family { background: #e4d8f0; }
+mark.span-death, .span-key .span-death { background: #e4e4e4; }
+mark.span-ok, .span-key .span-ok { background: #dceee4; }
+mark.span-other { background: #eee8de; }
+mark { padding: 0 0.05em; border-radius: 2px; color: inherit; }
+
+.nav { flex-wrap: wrap; }
+
 @media (max-width: 900px) {
   .masthead-inner { flex-direction: column; align-items: stretch; }
   .nav { justify-content: center; }

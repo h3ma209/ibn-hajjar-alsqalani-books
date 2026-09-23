@@ -1,5 +1,7 @@
 'use strict';
 
+const fs = require('fs');
+
 const { PATHS, ensureDirs } = require('../config');
 const { readJsonl, JsonlWriter, loadJsonl, writeJson } = require('../util/jsonl');
 const { writerValidator } = require('../schema/validate');
@@ -10,20 +12,28 @@ const {
   narrationToEdges,
   extractCitations,
 } = require('../graph/crossrefs');
+const { resolutionSplit, buildCitationReport, buildRollups } = require('../report/rollups');
+
+async function loadOptionalJsonl(filePath) {
+  if (!fs.existsSync(filePath)) return [];
+  return loadJsonl(filePath);
+}
 
 /**
  * Build the person graph and the citation list.
  *
  * Resolution statistics are written alongside the artifacts, because the useful
  * question about a graph like this is not how many edges exist but how many
- * point at a known entry.
+ * point at a known entry. In-book pointers and narrator names are scored apart.
  */
 async function graph({ log = () => {} } = {}) {
   ensureDirs();
 
   const indexRows = await loadJsonl(PATHS.index);
-  const resolver = buildResolver(indexRows);
-  log(`resolver indexed ${resolver.size} entries`);
+  const names = await loadOptionalJsonl(PATHS.names);
+  const genealogy = await loadOptionalJsonl(PATHS.genealogy);
+  const resolver = buildResolver(indexRows, { names, genealogy });
+  log(`resolver indexed ${resolver.size} entries (${names.length} names, ${genealogy.length} genealogy)`);
 
   const rawById = new Map();
   for await (const raw of readJsonl(PATHS.rawText)) {
@@ -43,20 +53,25 @@ async function graph({ log = () => {} } = {}) {
     unresolved: 0,
     by_type: {},
     citations: 0,
-    citation_keys: {},
   };
+
+  const persons = [];
+  const citations = [];
+  const edges = [];
 
   for await (const person of readJsonl(PATHS.persons)) {
     stats.persons += 1;
+    persons.push(person);
     const text = rawById.get(person.person_id) || '';
 
-    const edges = [
+    const personEdges = [
       ...refsToEdges(person, extractTextRefs(text), resolver),
       ...narrationToEdges(person, resolver),
     ];
 
-    for (const edge of edges) {
+    for (const edge of personEdges) {
       await edgeWriter.write(edge);
+      edges.push(edge);
       stats.edges += 1;
       stats.by_type[edge.type] = (stats.by_type[edge.type] || 0) + 1;
       if (edge.resolved) stats.resolved += 1;
@@ -64,35 +79,43 @@ async function graph({ log = () => {} } = {}) {
       else stats.unresolved += 1;
     }
 
-    // Authorities the LLM layer surfaced are not stored on the person record,
-    // so re-derive them from the text; both paths are labelled by source.
     for (const citation of extractCitations(person.person_id, text)) {
       await citationWriter.write(citation);
+      citations.push(citation);
       stats.citations += 1;
-      const key = citation.authority_key || citation.authority;
-      stats.citation_keys[key] = (stats.citation_keys[key] || 0) + 1;
     }
   }
 
   const edgeResult = await edgeWriter.close();
   const citationResult = await citationWriter.close();
+  const split = resolutionSplit(edges);
+  const citationReport = buildCitationReport(citations);
+  const rollups = buildRollups(persons, { excludeQism4: true });
+
+  writeJson(PATHS.citationsReport, citationReport);
+  writeJson(PATHS.rollups, rollups);
 
   const report = {
     generated_at: new Date().toISOString(),
     ...stats,
     resolution_rate: stats.edges ? Number((stats.resolved / stats.edges).toFixed(4)) : 0,
-    top_authorities: Object.entries(stats.citation_keys)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, 25)
-      .map(([key, count]) => ({ key, count })),
-    artifacts: { edges: edgeResult, citations: citationResult },
+    resolution_rate_in_book: split.resolution_rate_in_book,
+    resolution_rate_narrators: split.resolution_rate_narrators,
+    in_book: split.in_book,
+    narrators: split.narrators,
+    top_authorities: citationReport.top.slice(0, 25).map((row) => ({ key: row.key, count: row.count })),
+    artifacts: {
+      edges: edgeResult,
+      citations: citationResult,
+      citations_report: PATHS.citationsReport,
+      rollups: PATHS.rollups,
+    },
   };
-  delete report.citation_keys;
   writeJson(PATHS.graphReport, report);
 
   log(
-    `wrote ${stats.edges} edges (${(100 * report.resolution_rate).toFixed(1)}% resolved, ` +
-      `${stats.ambiguous} ambiguous) and ${stats.citations} citations`
+    `wrote ${stats.edges} edges (in-book ${(100 * split.resolution_rate_in_book).toFixed(1)}% resolved, ` +
+      `narrators ${(100 * split.resolution_rate_narrators).toFixed(1)}%) and ${stats.citations} citations`
   );
 
   return report;

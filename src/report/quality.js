@@ -33,6 +33,8 @@ const FILL_FIELDS = [
   ['praise', (p) => (p.narration.praise || []).length > 0],
   ['criticism', (p) => (p.narration.criticism || []).length > 0],
   ['defenses', (p) => (p.narration.defenses || []).length > 0],
+  ['events', (p) => (p.life.events || []).length > 0],
+  ['labels', (p) => (p.labels || []).length > 0],
   [
     'any_life_fact',
     (p) =>
@@ -112,6 +114,8 @@ function collectFacts(person) {
   push(person.narration.praise);
   push(person.narration.criticism);
   push(person.narration.defenses);
+  push(person.life.events);
+  push(person.life.wounds);
   return facts;
 }
 

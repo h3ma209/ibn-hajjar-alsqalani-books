@@ -8,6 +8,7 @@ const { writerValidator, checkValid } = require('../schema/validate');
 const { parseNasab } = require('../names/nasab');
 const { extractRegexBio, VERSION: REGEX_VERSION } = require('../extract/regex-bio');
 const { buildPersonRecord, buildIndexRow } = require('../extract/merge');
+const { labelPassages, coverageFrom } = require('../classify/spans');
 const quality = require('../report/quality');
 
 /**
@@ -39,8 +40,11 @@ async function build({ useLlm = true, limit = 0, log = () => {} } = {}) {
   }
 
   const personWriter = new JsonlWriter(PATHS.persons, { validate: writerValidator('person') });
-  const indexWriter = new JsonlWriter(PATHS.index);
+  const indexWriter = new JsonlWriter(PATHS.index, { validate: writerValidator('index') });
+  const eventWriter = new JsonlWriter(PATHS.events, { validate: writerValidator('event') });
+  const spanWriter = new JsonlWriter(PATHS.passageLabels, { validate: writerValidator('passageLabel') });
   const accumulator = quality.newAccumulator();
+  const coverageAcc = { labeled_chars: 0, total_chars: 0, unlabeled_sents: 0, spans: 0 };
 
   let processed = 0;
   const rejectedLlm = [];
@@ -95,6 +99,7 @@ async function build({ useLlm = true, limit = 0, log = () => {} } = {}) {
         raw,
         placement: placementRow.placement,
         nasab,
+        entryMarker: placementRow.entry_marker ?? null,
         ...chosen,
       });
 
@@ -116,6 +121,19 @@ async function build({ useLlm = true, limit = 0, log = () => {} } = {}) {
 
     await personWriter.write(person);
     await indexWriter.write(buildIndexRow(person));
+    for (const event of person.life.events || []) {
+      await eventWriter.write({ person_id: person.person_id, ...event });
+    }
+    const spans = labelPassages(person.person_id, raw.text_body || raw.text || '', {
+      source: 'regex',
+      confidence: 0.3,
+    });
+    const coverage = coverageFrom(spans, raw.text_body || raw.text || '');
+    coverageAcc.labeled_chars += Math.round(coverage.label_coverage * (raw.char_len || 0));
+    coverageAcc.total_chars += raw.char_len || 0;
+    coverageAcc.unlabeled_sents += coverage.n_unlabeled_sents;
+    coverageAcc.spans += coverage.n_spans;
+    for (const span of spans) await spanWriter.write(span);
     quality.observe(accumulator, person);
 
     processed += 1;
@@ -126,6 +144,17 @@ async function build({ useLlm = true, limit = 0, log = () => {} } = {}) {
 
   const personResult = await personWriter.close();
   const indexResult = await indexWriter.close();
+  const eventResult = await eventWriter.close();
+  const spanResult = await spanWriter.close();
+  writeJson(PATHS.labelCoverage, {
+    generated_at: new Date().toISOString(),
+    spans: spanResult.count,
+    events: eventResult.count,
+    unlabeled_sents: coverageAcc.unlabeled_sents,
+    label_coverage: coverageAcc.total_chars
+      ? Number((coverageAcc.labeled_chars / coverageAcc.total_chars).toFixed(4))
+      : 0,
+  });
 
   const usableLlm = Math.max(0, llmFacts.size - rejectedLlm.length);
   const report = quality.finalize(accumulator, {

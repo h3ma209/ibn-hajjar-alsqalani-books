@@ -1,0 +1,18 @@
+{
+  "description": "Non-battle incident kinds and their Arabic surface forms. Battles stay in battles.json.",
+  "terms": [
+    { "key": "sariyya", "kind": "sariyya", "label_ar": "سرية", "aliases": ["سرية", "سرية"] },
+    { "key": "wufd", "kind": "wufd", "label_ar": "وفد", "aliases": ["وفد", "وفادة", "وفوده"] },
+    { "key": "captivity", "kind": "captivity", "label_ar": "أسر", "aliases": ["أسر", "سبي", "أسيرا"] },
+    { "key": "wound", "kind": "wound", "label_ar": "جرح", "aliases": ["جرح", "جريح", "أصيب"] },
+    { "key": "martyrdom", "kind": "martyrdom", "label_ar": "استشهاد", "aliases": ["استشهد", "استشهاد"] },
+    { "key": "hijra", "kind": "hijra", "label_ar": "هجرة", "aliases": ["هاجر", "هجرته", "الهجرة"] },
+    { "key": "treaty", "kind": "treaty", "label_ar": "صلح", "aliases": ["صلح", "هدنة"] },
+    { "key": "bayah", "kind": "bayah", "label_ar": "بيعة", "aliases": ["بايع", "بيعة"] },
+    { "key": "siege", "kind": "siege", "label_ar": "حصار", "aliases": ["حصر", "حصار"] },
+    { "key": "exile", "kind": "exile", "label_ar": "نفي", "aliases": ["نفي", "أخرجه من"] },
+    { "key": "manumission", "kind": "manumission", "label_ar": "عتق", "aliases": ["أعتق", "عتق"] },
+    { "key": "marriage", "kind": "marriage", "label_ar": "زواج", "aliases": ["تزوج", "زوجه", "نكح"] },
+    { "key": "dream", "kind": "dream", "label_ar": "رؤيا", "aliases": ["رأى في المنام", "رؤيا"] }
+  ]
+}

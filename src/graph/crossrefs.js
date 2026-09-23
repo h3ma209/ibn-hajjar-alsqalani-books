@@ -2,6 +2,7 @@
 
 const { flatten, normalizeArabic, normalizeDigits } = require('../util/arabic');
 const { resolve: resolveVocab, vocab } = require('../vocab');
+const { suffixOverlap } = require('./genealogy');
 
 /**
  * Cross-reference and narrator-graph resolution.
@@ -119,22 +120,45 @@ function extractTextRefs(text) {
   return refs;
 }
 
+function nameTokens(value) {
+  if (Array.isArray(value)) return value.map((part) => normalizeArabic(part)).filter(Boolean);
+  return String(value || '')
+    .split(/\s+بن\s+/u)
+    .map((part) => normalizeArabic(part))
+    .filter(Boolean);
+}
+
+const NO_RESOLUTION = { resolved: false, ambiguous: false, person_id: null, candidates: [] };
+
+function uniqueIds(ids) {
+  const seen = new Set();
+  const out = [];
+  for (const id of ids) {
+    if (!id || seen.has(id)) continue;
+    seen.add(id);
+    out.push(id);
+  }
+  return out;
+}
+
 /**
  * Lookup tables over the index so references can be turned into person_ids.
- * Names are indexed under both the listed name and the parsed full lineage.
+ * Indexes display, full nasab, kunya, ism+father, and extra name variants.
  */
-function buildResolver(indexRows) {
+function buildResolver(indexRows, { names = [], genealogy = [] } = {}) {
   const byNumber = new Map();
   const byName = new Map();
   const meta = new Map();
   const order = indexRows.map((row) => row.person_id);
   const position = new Map(order.map((id, index) => [id, index]));
+  const relationTarget = new Map();
 
   const addName = (key, personId) => {
-    if (!key) return;
-    const bucket = byName.get(key);
+    const norm = normalizeArabic(key);
+    if (!norm) return;
+    const bucket = byName.get(norm);
     if (bucket) bucket.push(personId);
-    else byName.set(key, [personId]);
+    else byName.set(norm, [personId]);
   };
 
   for (const row of indexRows) {
@@ -145,36 +169,87 @@ function buildResolver(indexRows) {
     else byNumber.set(row.entry_number, [row.person_id]);
 
     addName(row.display_name_norm, row.person_id);
-    if (row.full_name_norm && row.full_name_norm !== row.display_name_norm) {
-      addName(row.full_name_norm, row.person_id);
+    addName(row.full_name_norm, row.person_id);
+    addName(row.kunya, row.person_id);
+    addName(row.kunya_norm, row.person_id);
+    addName(row.ism_norm, row.person_id);
+    for (const key of row.name_keys || []) addName(key, row.person_id);
+    if (row.ism_norm && row.father_norm) {
+      addName(`${row.ism_norm} بن ${row.father_norm}`, row.person_id);
     }
   }
 
+  for (const name of names) {
+    addName(name.form_norm || name.form, name.person_id);
+  }
+
+  for (const edge of genealogy) {
+    if (!edge.resolved || !edge.to_person_id || !edge.from_person_id) continue;
+    const bucket = relationTarget.get(edge.from_person_id) || {};
+    if (edge.relation) bucket[edge.relation] = edge.to_person_id;
+    relationTarget.set(edge.from_person_id, bucket);
+  }
+
   function resolveNumber(entryNumber) {
-    const candidates = byNumber.get(entryNumber) || [];
+    const candidates = uniqueIds(byNumber.get(entryNumber) || []);
     return {
       resolved: candidates.length === 1,
       ambiguous: candidates.length > 1,
       person_id: candidates.length === 1 ? candidates[0] : null,
       candidates,
     };
+  }
+
+  function applyFilters(candidates, filters) {
+    if (candidates.length <= 1) return candidates;
+    const hasFilter =
+      filters.section ||
+      filters.letter ||
+      filters.qism ||
+      filters.is_woman != null ||
+      filters.nisba_key;
+    if (!hasFilter) return candidates;
+
+    const filtered = candidates.filter((id) => {
+      const row = meta.get(id);
+      if (!row) return false;
+      if (filters.section && row.section_type !== filters.section) return false;
+      if (filters.letter && row.letter !== filters.letter) return false;
+      if (filters.qism && row.qism !== filters.qism) return false;
+      if (filters.is_woman != null && row.is_woman !== filters.is_woman) return false;
+      if (filters.nisba_key && !(row.nisba_keys || []).includes(filters.nisba_key)) return false;
+      return true;
+    });
+    return filtered.length ? filtered : candidates;
+  }
+
+  function applyNasabOverlap(candidates, nasabChain) {
+    if (candidates.length <= 1 || !nasabChain || !nasabChain.length) return candidates;
+    const scored = candidates.map((id) => {
+      const row = meta.get(id);
+      const tokens = nameTokens(row?.full_name_norm || row?.display_name_norm);
+      return { id, overlap: suffixOverlap(nasabChain, tokens) };
+    });
+    scored.sort((a, b) => b.overlap - a.overlap);
+    const best = scored[0];
+    const next = scored[1];
+    if (best.overlap >= 1 && best.overlap > (next?.overlap || 0)) return [best.id];
+    return candidates;
   }
 
   function resolveName(name, filters = {}) {
     const key = normalizeArabic(name);
-    let candidates = byName.get(key) || [];
+    let candidates = uniqueIds(byName.get(key) || []);
 
-    if (candidates.length > 1 && (filters.section || filters.letter || filters.qism)) {
-      const filtered = candidates.filter((id) => {
-        const row = meta.get(id);
-        if (!row) return false;
-        if (filters.section && row.section_type !== filters.section) return false;
-        if (filters.letter && row.letter !== filters.letter) return false;
-        if (filters.qism && row.qism !== filters.qism) return false;
-        return true;
-      });
-      if (filtered.length) candidates = filtered;
+    if (!candidates.length) {
+      const tokens = nameTokens(name);
+      if (tokens.length >= 2) {
+        candidates = uniqueIds(byName.get(`${tokens[0]} بن ${tokens[1]}`) || []);
+      }
     }
+
+    candidates = applyFilters(candidates, filters);
+    candidates = applyNasabOverlap(candidates, filters.nasabChain);
 
     return {
       resolved: candidates.length === 1,
@@ -182,6 +257,12 @@ function buildResolver(indexRows) {
       person_id: candidates.length === 1 ? candidates[0] : null,
       candidates,
     };
+  }
+
+  function resolveRelation(fromPersonId, relation) {
+    const hit = relationTarget.get(fromPersonId)?.[relation];
+    if (!hit) return NO_RESOLUTION;
+    return { resolved: true, ambiguous: false, person_id: hit, candidates: [hit] };
   }
 
   /** "الذي بعده" and "الذي قبله" are exact pointers once entries are in document order. */
@@ -197,7 +278,15 @@ function buildResolver(indexRows) {
     };
   }
 
-  return { resolveNumber, resolveName, neighbor, meta, order, size: indexRows.length };
+  return {
+    resolveNumber,
+    resolveName,
+    resolveRelation,
+    neighbor,
+    meta,
+    order,
+    size: indexRows.length,
+  };
 }
 
 function edge(fields) {
@@ -221,8 +310,6 @@ function edge(fields) {
   };
 }
 
-const NO_RESOLUTION = { resolved: false, ambiguous: false, person_id: null, candidates: [] };
-
 /**
  * Turn text references into edges, resolving targets where possible.
  *
@@ -241,17 +328,22 @@ function refsToEdges(person, refs, resolver) {
     } else if (ref.kind === 'see_adjacent') {
       resolution = resolver.neighbor(personId, ref.offset);
     } else if (ref.kind === 'see_relation') {
-      // The lineage already names the father and grandfather, so those pointers
-      // can be followed by name.
-      const nasab = person.identity?.nasab ?? {};
-      const relativeName =
-        ref.relation === 'father'
-          ? nasab.father
-          : ref.relation === 'grandfather'
-            ? nasab.grandfather
-            : null;
-      if (relativeName) {
-        resolution = resolver.resolveName(relativeName);
+      if (resolver.resolveRelation) {
+        resolution = resolver.resolveRelation(personId, ref.relation);
+      }
+      if (!resolution.resolved) {
+        const nasab = person.identity?.nasab ?? {};
+        const relativeName =
+          ref.relation === 'father'
+            ? nasab.father
+            : ref.relation === 'grandfather'
+              ? nasab.grandfather
+              : null;
+        if (relativeName) {
+          resolution = resolver.resolveName(relativeName, {
+            nasabChain: nasab.chain,
+          });
+        }
       }
     }
 
@@ -290,7 +382,9 @@ function narrationToEdges(person, resolver) {
   const addNameEdges = (facts, type) => {
     for (const fact of facts || []) {
       if (COLLECTIVE_RE.test(fact.value)) continue;
-      const resolution = resolver.resolveName(fact.value);
+      const resolution = resolver.resolveName(fact.value, {
+        nasabChain: person.identity?.nasab?.chain,
+      });
       edges.push(
         edge({
           from: personId,
@@ -312,13 +406,20 @@ function narrationToEdges(person, resolver) {
   addNameEdges(person.narration?.narrated_to, 'narrated_to');
 
   for (const member of person.life?.family || []) {
-    if (!member.name) continue;
-    const resolution = resolver.resolveName(member.name);
+    const memberName = member.name || member.value;
+    if (!memberName) continue;
+    if (COLLECTIVE_RE.test(memberName)) continue;
+    const resolution = resolver.resolveName(memberName, {
+      nasabChain: person.identity?.nasab?.chain,
+      is_woman: member.relation === 'mother' || member.relation === 'sister' || member.relation === 'wife' || member.relation === 'daughter'
+        ? true
+        : undefined,
+    });
     edges.push(
       edge({
         from: personId,
         to: resolution.person_id,
-        literal: resolution.person_id ? null : member.name,
+        literal: resolution.person_id ? null : memberName,
         type: 'family',
         relation: member.relation ?? null,
         source: member.source,

@@ -68,6 +68,28 @@ function routeApi(catalog, reqUrl, res) {
     sendJson(res, 200, { letters: catalog.letters });
     return true;
   }
+  if (pathname === '/api/facets') {
+    sendJson(res, 200, {
+      facets: catalog.facetSummary(),
+      battles: catalog.postings('battle'),
+      places: catalog.postings('place'),
+      nisba: catalog.postings('nisba'),
+      labels: catalog.postings('label'),
+      authorities: catalog.postings('authority'),
+      entry_kind: catalog.postings('entry_kind', { includeQism4: true }),
+    });
+    return true;
+  }
+  if (pathname === '/api/chapters') {
+    sendJson(res, 200, { chapters: catalog.chapters() });
+    return true;
+  }
+  const chapterMatch = pathname.match(/^\/api\/chapter\/(\d+)$/);
+  if (chapterMatch) {
+    const chapter = catalog.chapter(chapterMatch[1]);
+    sendJson(res, chapter.error ? chapter.status || 404 : 200, chapter);
+    return true;
+  }
   if (pathname === '/api/quality') {
     sendJson(res, 200, {
       quality: catalog.quality,
@@ -77,7 +99,7 @@ function routeApi(catalog, reqUrl, res) {
     return true;
   }
 
-  const personMatch = pathname.match(/^\/api\/person\/([^/]+)(?:\/(text|graph))?$/);
+  const personMatch = pathname.match(/^\/api\/person\/([^/]+)(?:\/(text|graph|spans))?$/);
   if (personMatch) {
     const id = decodeURIComponent(personMatch[1]);
     const extra = personMatch[2];
@@ -93,6 +115,10 @@ function routeApi(catalog, reqUrl, res) {
         return true;
       }
       sendJson(res, 200, person.neighbors);
+      return true;
+    }
+    if (extra === 'spans') {
+      sendJson(res, 200, { person_id: id, spans: catalog.spansFor(id) });
       return true;
     }
     const payload = catalog.person(id);

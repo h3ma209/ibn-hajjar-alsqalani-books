@@ -6,7 +6,6 @@ const path = require('path');
 
 const { PATHS, LLM, SCHEMA_VERSION } = require('./config');
 const { readJsonl, loadJsonl, writeJson } = require('./util/jsonl');
-const { normalizeArabic } = require('./util/arabic');
 const { checkValid } = require('./schema/validate');
 const { PERSON_ID_PATTERN } = require('./bok/entries');
 const { compareToBaseline } = require('./report/quality');
@@ -14,6 +13,9 @@ const { ingest } = require('./pipeline/ingest');
 const { build } = require('./pipeline/build');
 const { extract } = require('./pipeline/extract');
 const { graph } = require('./pipeline/graph');
+const { enrich } = require('./pipeline/enrich');
+const { seedFromV2 } = require('./pipeline/seed');
+const { buildDb } = require('./pipeline/db');
 
 const log = (message) => process.stderr.write(`${message}\n`);
 const out = (data) => process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
@@ -78,7 +80,10 @@ Pipeline
   ingest [--bok <path>] [--limit n]   Decode the .bok into raw-text/placement/chapters JSONL
   extract [options]                    Run LLM extraction into llm-facts.jsonl
   build [--no-llm] [--limit n]         Assemble persons.jsonl + index.jsonl + quality report
+  seed                                 Copy v2 ingest + llm-facts into data/v3 (no overwrite)
   graph                                Resolve cross-references into edges.jsonl + citations.jsonl
+  enrich                               Genealogy, name index, facets from persons.jsonl
+  db                                   Pack JSONL into data/v3/derived/corpus.sqlite (FTS5)
 
 Verification
   validate                             Re-validate every artifact against its schema
@@ -182,6 +187,10 @@ async function cmdGraph() {
   out({
     edges: report.edges,
     resolution_rate: report.resolution_rate,
+    resolution_rate_in_book: report.resolution_rate_in_book,
+    resolution_rate_narrators: report.resolution_rate_narrators,
+    in_book: report.in_book,
+    narrators: report.narrators,
     ambiguous: report.ambiguous,
     unresolved: report.unresolved,
     by_type: report.by_type,
@@ -193,6 +202,9 @@ async function cmdGraph() {
 const VALIDATE_TARGETS = [
   ['rawText', () => PATHS.rawText],
   ['person', () => PATHS.persons],
+  ['index', () => PATHS.index],
+  ['event', () => PATHS.events],
+  ['passageLabel', () => PATHS.passageLabels],
   ['edge', () => PATHS.edges],
   ['citation', () => PATHS.citations],
 ];
@@ -314,33 +326,34 @@ async function cmdGet(args) {
 async function cmdSearch(args) {
   requireArtifact(PATHS.index, 'Run `npm run build` first.');
   const rawQuery = args.positional.join(' ').trim();
-  if (!rawQuery) throw new Error('Usage: search <query> [--limit n]');
+  if (!rawQuery) throw new Error('Usage: search <query> [--limit n] [--in-text]');
 
-  const alias = LATIN_ALIASES[rawQuery.toLowerCase()];
-  const query = normalizeArabic(alias || rawQuery);
-  const limit = intFlag(args.flags, 'limit', 20);
-
-  const hits = [];
-  for await (const row of readJsonl(PATHS.index)) {
-    const haystacks = [row.display_name_norm, row.full_name_norm].filter(Boolean);
-    if (String(row.entry_number) === rawQuery.trim()) {
-      hits.push({ score: 0, row });
-      continue;
-    }
-    const exact = haystacks.some((h) => h === query);
-    const starts = haystacks.some((h) => h.startsWith(query));
-    const contains = haystacks.some((h) => h.includes(query));
-    if (!contains) continue;
-    hits.push({ score: exact ? 0 : starts ? 1 : 2, row });
-  }
-
-  hits.sort((a, b) => a.score - b.score || a.row.entry_number - b.row.entry_number);
+  const { Catalog } = require('./ui/catalog');
+  const catalog = new Catalog();
+  catalog.load({ log: () => {} });
+  const data = catalog.search({
+    q: rawQuery,
+    limit: String(intFlag(args.flags, 'limit', 20)),
+    in_text: args.flags['in-text'] === true ? '1' : '',
+  });
   out({
-    query: rawQuery,
-    resolved_query: alias || rawQuery,
-    count: Math.min(hits.length, limit),
-    total_matches: hits.length,
-    results: hits.slice(0, limit).map((hit) => hit.row),
+    query: data.query,
+    resolved_query: data.resolved_query,
+    count: data.results.length,
+    total_matches: data.total,
+    results: data.results,
+  });
+}
+
+async function cmdDb() {
+  requireArtifact(PATHS.persons, 'Run `npm run build` first.');
+  const result = await buildDb({ log });
+  out({
+    path: result.path,
+    persons: result.persons,
+    citations: result.citations,
+    chapters: result.chapters,
+    mb: Number((result.bytes / 1024 / 1024).toFixed(1)),
   });
 }
 
@@ -386,12 +399,26 @@ async function cmdUi(args) {
   await new Promise(() => {});
 }
 
+async function cmdSeed(args) {
+  const result = seedFromV2({ log, force: args.flags.force === true });
+  out(result);
+}
+
+async function cmdEnrich() {
+  requireArtifact(PATHS.persons, 'Run `npm run build` first.');
+  const result = await enrich({ log });
+  out(result);
+}
+
 const COMMANDS = {
+  seed: cmdSeed,
   ingest: cmdIngest,
   build: cmdBuild,
   structural: cmdBuild,
   extract: cmdExtract,
   graph: cmdGraph,
+  enrich: cmdEnrich,
+  db: cmdDb,
   validate: cmdValidate,
   gate: cmdGate,
   stats: cmdStats,

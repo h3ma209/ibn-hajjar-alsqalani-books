@@ -41,6 +41,7 @@ function personFor(entryNumber) {
     }),
     extractionSource: 'regex',
     meta: { version: 'test', extracted_at: '2026-01-01T00:00:00.000Z' },
+    entryMarker: placement.entry_marker ?? null,
   });
 }
 
@@ -115,7 +116,7 @@ test('battles resolve to controlled-vocabulary keys', () => {
 
 test('the index row carries the fields needed to browse without the full record', () => {
   const row = buildIndexRow(personFor(10680));
-  for (const field of ['person_id', 'entry_number', 'display_name', 'qism', 'section_type', 'letter']) {
+  for (const field of ['person_id', 'entry_number', 'display_name', 'qism', 'section_type', 'letter', 'entry_kind', 'length_class']) {
     assert.ok(row[field] != null, `index row is missing ${field}`);
   }
 });

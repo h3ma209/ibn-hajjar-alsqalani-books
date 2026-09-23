@@ -18,6 +18,28 @@ const QISM = {
 };
 
 const SECTION_LABEL = { names: 'الأسماء', kunya: 'الكنى', women: 'النساء' };
+const KIND_LABEL = {
+  biography: 'ترجمة', crossref_stub: 'إحالة', name_only: 'اسم فقط',
+  kunya_redirect: 'كنية محالة', qism4_refutation: 'ردّ القسم الرابع',
+};
+const CHAPTER_KIND = {
+  preface: 'مقدمة', definition: 'تعريف', method: 'منهج', virtue_adala: 'العدالة',
+  taxonomy: 'تقسيم', qism_heading: 'قسم', letter_heading: 'حرف',
+  block_heading: 'باب', volume_heading: 'مجلد', other: 'أخرى',
+};
+const LABEL_AR = {
+  nasab: 'نسب', name_dispute: 'خلاف اسم', isnad: 'إسناد', hadith_matn: 'متن',
+  citation: 'استشهاد', crossref: 'إحالة', battle: 'غزو', event: 'حادثة',
+  death: 'وفاة', birth: 'ولادة', age: 'عمر', office: 'ولاية', family: 'قرابة',
+  praise: 'توثيق', criticism: 'جرح', defense: 'دفاع', ibn_hajar_voice: 'كلام المصنف',
+  poetry: 'شعر', quran: 'قرآن', editor_footnote: 'حاشية', heading: 'عنوان',
+  boilerplate: 'قالب', unlabeled: 'بلا وسم',
+};
+const SPAN_CLASS = {
+  nasab: 'span-nasab', battle: 'span-battle', event: 'span-event',
+  isnad: 'span-isnad', citation: 'span-cite', criticism: 'span-crit',
+  family: 'span-family', death: 'span-death', praise: 'span-ok',
+};
 
 const TYPE_LABEL = {
   family: 'قرابة', narrated_from: 'روى عن', narrated_to: 'روى عنه',
@@ -134,9 +156,15 @@ function parseHash() {
   const [path, queryString] = raw.split('?');
   const params = new URLSearchParams(queryString || '');
   const person = path.match(/^\/p\/(.+)$/);
+  const chapter = path.match(/^\/chapter\/(\d+)$/);
   if (path === '/' || path === '') return { page: 'overview', params };
   if (path === '/browse') return { page: 'browse', params };
   if (path === '/quality') return { page: 'quality', params };
+  if (path === '/chapters') return { page: 'chapters', params };
+  if (path === '/battles') return { page: 'battles', params };
+  if (path === '/citations') return { page: 'citations', params };
+  if (path === '/tribes') return { page: 'tribes', params };
+  if (chapter) return { page: 'chapter', id: chapter[1], params };
   if (person) return { page: 'person', id: decodeURIComponent(person[1]), params };
   return { page: 'overview', params };
 }
@@ -257,6 +285,10 @@ function filterControls(params) {
       <option value="1" ${params.get('woman') === '1' ? 'selected' : ''}>النساء</option>
       <option value="0" ${params.get('woman') === '0' ? 'selected' : ''}>الرجال</option>
     </select>
+    <select data-filter="entry_kind" aria-label="نوع المدخل"><option value="">كل الأنواع</option>
+      ${Object.entries(KIND_LABEL).map(([k, v]) => `<option value="${k}" ${params.get('entry_kind') === k ? 'selected' : ''}>${v}</option>`).join('')}
+    </select>
+    <label class="filter-check"><input type="checkbox" data-filter="in_text" value="1" ${params.get('in_text') === '1' ? 'checked' : ''}/> داخل النص</label>
   </div>`;
 }
 
@@ -270,6 +302,7 @@ function tarjamaItem(row) {
     <span class="tags">
       ${qismChip(row.qism)}
       ${row.section_type ? `<span class="chip">${esc(SECTION_LABEL[row.section_type] || row.section_type)}</span>` : ''}
+      ${row.entry_kind && row.entry_kind !== 'biography' ? `<span class="chip">${esc(KIND_LABEL[row.entry_kind] || row.entry_kind)}</span>` : ''}
       ${row.is_woman ? '<span class="chip">امرأة</span>' : ''}
       ${row.entry_number_is_ambiguous ? '<span class="chip warn">رقم مكرر</span>' : ''}
     </span>
@@ -328,7 +361,10 @@ function wireFilters(params) {
   app.querySelectorAll('[data-filter]').forEach((el) => {
     el.addEventListener('change', () => {
       const next = new URLSearchParams(params);
-      if (el.value) next.set(el.dataset.filter, el.value);
+      if (el.type === 'checkbox') {
+        if (el.checked) next.set(el.dataset.filter, el.value || '1');
+        else next.delete(el.dataset.filter);
+      } else if (el.value) next.set(el.dataset.filter, el.value);
       else next.delete(el.dataset.filter);
       next.delete('offset');
       go(`#/browse?${next.toString()}`);
@@ -740,6 +776,7 @@ async function renderPerson(id) {
           <span>${icon('book')} نص الترجمة من الطبعة</span>
           <span><span id="raw-len"></span> <button type="button" id="copy-raw">${icon('copy')} نسخ</button></span>
         </div>
+        <div class="span-legend muted" id="span-legend" hidden></div>
         <div class="raw-body" id="raw-text">يُحمَّل…</div>
       </div>
     </div>`;
@@ -749,9 +786,21 @@ async function renderPerson(id) {
   drawGraph(document.getElementById('graph'), data.neighbors);
 
   try {
-    const raw = await api(`/api/person/${encodeURIComponent(id)}/text`);
+    const [raw, spanData] = await Promise.all([
+      api(`/api/person/${encodeURIComponent(id)}/text`),
+      api(`/api/person/${encodeURIComponent(id)}/spans`).catch(() => ({ spans: data.spans || [] })),
+    ]);
     const box = document.getElementById('raw-text');
-    box.textContent = raw.text_body || '';
+    const spans = spanData.spans || data.spans || [];
+    box.innerHTML = highlightText(raw.text_body || '', spans);
+    const used = [...new Set(spans.filter((s) => s.label !== 'unlabeled').map((s) => s.label))];
+    const legend = document.getElementById('span-legend');
+    if (legend && used.length) {
+      legend.hidden = false;
+      legend.innerHTML = used.map((label) =>
+        `<span class="span-key"><i class="${SPAN_CLASS[label] || 'span-other'}"></i>${esc(LABEL_AR[label] || label)}</span>`
+      ).join('');
+    }
     const lenEl = document.getElementById('raw-len');
     if (lenEl) lenEl.textContent = `${fmt((raw.text_body || '').length)} حرف · `;
     document.getElementById('copy-raw')?.addEventListener('click', async () => {
@@ -763,6 +812,96 @@ async function renderPerson(id) {
   } catch (err) {
     document.getElementById('raw-text').textContent = `تعذّر التحميل: ${err.message}`;
   }
+}
+
+function highlightText(text, spans) {
+  const usable = (spans || [])
+    .filter((span) => span.label !== 'unlabeled' && span.end > span.start)
+    .sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
+  let out = '';
+  let cursor = 0;
+  for (const span of usable) {
+    if (span.start < cursor) continue;
+    out += esc(text.slice(cursor, span.start));
+    const cls = SPAN_CLASS[span.label] || 'span-other';
+    out += `<mark class="${cls}" title="${esc(LABEL_AR[span.label] || span.label)}">${esc(text.slice(span.start, span.end))}</mark>`;
+    cursor = span.end;
+  }
+  out += esc(text.slice(cursor));
+  return out;
+}
+
+function facetGrid(items, hrefFn) {
+  if (!items?.length) return emptyState('لا بيانات');
+  return `<div class="facet-grid">${items.map((item) =>
+    `<a class="facet-card" href="${hrefFn(item)}">
+      <span class="name">${esc(item.label_ar || item.title || item.key)}</span>
+      <span class="muted">${item.kind ? esc(CHAPTER_KIND[item.kind] || item.kind) : ''}${item.count != null ? fmt(item.count) : item.char_len ? fmt(item.char_len) + ' حرف' : ''}</span>
+    </a>`
+  ).join('')}</div>`;
+}
+
+async function renderChapters() {
+  setNav('chapters');
+  const data = await api('/api/chapters');
+  setFooter(`${fmt(data.chapters.length)} باب`);
+  app.innerHTML = `
+    ${breadcrumb([{ href: '#/', label: 'الفهرس' }, { label: 'الأبواب' }])}
+    <header style="margin-bottom:1.25rem">
+      <h1 class="section-title">أبواب الكتاب</h1>
+      <p class="muted">مقدمات ابن حجر والعناوين الهيكلية خارج تراجم الأشخاص</p>
+    </header>
+    <div class="tarjama-list">${(data.chapters || []).map((ch) =>
+      `<a class="tarjama-item" href="#/chapter/${ch.id}">
+        <span class="num">${esc(ch.lvl)}</span>
+        <span><span class="name">${esc(ch.title)}</span>
+          <div class="meta">${esc(CHAPTER_KIND[ch.kind] || ch.kind)}${ch.char_len ? ` · ${fmt(ch.char_len)} حرف` : ''}</div>
+        </span>
+        <span class="tags"><span class="chip">${esc(ch.kind)}</span></span>
+      </a>`
+    ).join('')}</div>`;
+}
+
+async function renderChapter(id) {
+  setNav('chapters');
+  const ch = await api(`/api/chapter/${id}`);
+  setFooter(ch.title);
+  app.innerHTML = `
+    ${breadcrumb([{ href: '#/', label: 'الفهرس' }, { href: '#/chapters', label: 'الأبواب' }, { label: ch.title }])}
+    <a class="back-link" href="#/chapters">${icon('back')} عودة إلى الأبواب</a>
+    <header class="person-hero">
+      <h1>${esc(ch.title)}</h1>
+      <p class="muted">${esc(CHAPTER_KIND[ch.kind] || ch.kind)} · ${fmt(ch.char_len)} حرف</p>
+    </header>
+    <div class="raw-box"><div class="raw-body">${esc(ch.text || 'لا نص لهذا العنوان')}</div></div>`;
+}
+
+async function renderBattles() {
+  setNav('battles');
+  const data = await api('/api/facets');
+  setFooter(`${fmt(data.battles.length)} غزوة`);
+  app.innerHTML = `
+    ${breadcrumb([{ href: '#/', label: 'الفهرس' }, { label: 'الغزوات' }])}
+    <header style="margin-bottom:1.25rem">
+      <h1 class="section-title">من شهد الغزوات</h1>
+      <p class="muted">القسم الرابع مستثنى · اضغط غزوة لعرض من حضرها</p>
+    </header>
+    ${facetGrid(data.battles, (item) => `#/browse?battle=${encodeURIComponent(item.key)}`)}
+    <h2 class="section-title" style="margin-top:2rem;font-size:1.4rem">القبائل والنسب</h2>
+    ${facetGrid((data.nisba || []).slice(0, 24), (item) => `#/browse?nisba=${encodeURIComponent(item.key)}`)}`;
+}
+
+async function renderCitationsPage() {
+  setNav('citations');
+  const data = await api('/api/facets');
+  setFooter(`${fmt(data.authorities.length)} مصدر`);
+  app.innerHTML = `
+    ${breadcrumb([{ href: '#/', label: 'الفهرس' }, { label: 'الاستشهادات' }])}
+    <header style="margin-bottom:1.25rem">
+      <h1 class="section-title">من استشهد بهم ابن حجر</h1>
+      <p class="muted">اضغط مصدراً لرؤية التراجم التي نُقل عنه فيها</p>
+    </header>
+    ${facetGrid(data.authorities, (item) => `#/browse?authority=${encodeURIComponent(item.key)}`)}`;
 }
 
 function hasLifeContent(p) {
@@ -828,7 +967,7 @@ function renderQuality(meta) {
       <div class="card-head">${icon('quote')}<h2>أكثر من استشهد بهم</h2></div>
       <div class="tarjama-list">
         ${(g.top_authorities || []).slice(0, 12).map((a) =>
-          `<div class="tarjama-item"><span class="num">${fmt(a.count)}</span><span class="name">${esc(a.label_ar || a.key)}</span><span></span></div>`
+          `<a class="tarjama-item" href="#/browse?authority=${encodeURIComponent(a.key)}"><span class="num">${fmt(a.count)}</span><span class="name">${esc(a.label_ar || a.key)}</span><span></span></a>`
         ).join('')}
       </div>
     </section>`;
@@ -845,6 +984,10 @@ async function route() {
     else if (loc.page === 'browse') await renderBrowse(loc.params);
     else if (loc.page === 'quality') renderQuality(state.meta);
     else if (loc.page === 'person') await renderPerson(loc.id);
+    else if (loc.page === 'chapters') await renderChapters();
+    else if (loc.page === 'chapter') await renderChapter(loc.id);
+    else if (loc.page === 'battles') await renderBattles();
+    else if (loc.page === 'citations') await renderCitationsPage();
   } catch (err) {
     app.innerHTML = emptyState(`تعذّر التحميل: ${err.message}`, 'تأكّد من تشغيل npm run pipeline');
     setFooter('');

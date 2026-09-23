@@ -1,0 +1,9 @@
+{
+  "description": "Death cause keys.",
+  "terms": [
+    { "key": "battle", "label_ar": "قتل في حرب", "aliases": ["قتل يوم", "استشهد", "قتل بأحد", "قتل ببدر"] },
+    { "key": "plague", "label_ar": "طاعون", "aliases": ["طاعون", "عمواس"] },
+    { "key": "killed", "label_ar": "قتل", "aliases": ["قتل", "قتله"] },
+    { "key": "natural", "label_ar": "وفاة", "aliases": ["مات", "توفي"] }
+  ]
+}

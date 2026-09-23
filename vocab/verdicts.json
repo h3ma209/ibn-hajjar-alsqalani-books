@@ -1,0 +1,10 @@
+{
+  "description": "Scholarly verdict keys. Used when later extract-pass fills verdicts.jsonl.",
+  "terms": [
+    { "key": "thiqa", "label_ar": "ثقة", "aliases": ["ثقة"] },
+    { "key": "daif", "label_ar": "ضعيف", "aliases": ["ضعيف", "ضعفه"] },
+    { "key": "majhul", "label_ar": "مجهول", "aliases": ["مجهول", "لا يعرف"] },
+    { "key": "mukhtalaf", "label_ar": "مختلف فيه", "aliases": ["مختلف فيه"] },
+    { "key": "not_companion", "label_ar": "ليس بصحابي", "aliases": ["ليس بصحابي", "ليست له صحبة"] }
+  ]
+}

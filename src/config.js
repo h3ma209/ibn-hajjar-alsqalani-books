@@ -15,15 +15,17 @@ try {
   // No .env present. Env vars may still come from the shell.
 }
 
-const DATA_DIR = path.join(DATA_ROOT, 'v2', 'corpus');
-const REPORTS_DIR = path.join(DATA_ROOT, 'v2', 'reports');
+const CORPUS_VERSION = process.env.CORPUS_VERSION || 'v3';
+const DATA_DIR = path.join(DATA_ROOT, CORPUS_VERSION, 'corpus');
+const REPORTS_DIR = path.join(DATA_ROOT, CORPUS_VERSION, 'reports');
+const DERIVED_DIR = path.join(DATA_ROOT, CORPUS_VERSION, 'derived');
 const SOURCE_DIR = path.join(DATA_ROOT, 'source', 'isabah');
 const SAMPLES_DIR = path.join(CODE_ROOT, 'samples');
 const SCHEMA_DIR = path.join(CODE_ROOT, 'schema');
 const PROMPTS_DIR = path.join(CODE_ROOT, 'prompts');
 const VOCAB_DIR = path.join(CODE_ROOT, 'vocab');
 
-const SCHEMA_VERSION = '2.0.0';
+const SCHEMA_VERSION = '3.0.0';
 
 /** Book identity. The slug is the namespace half of every person_id. */
 const BOOK = {
@@ -39,8 +41,10 @@ const PATHS = {
   WORKSPACE_ROOT,
   DATA_ROOT,
   SOURCE_DIR,
+  CORPUS_VERSION,
   DATA_DIR,
   REPORTS_DIR,
+  DERIVED_DIR,
   SAMPLES_DIR,
   SCHEMA_DIR,
   PROMPTS_DIR,
@@ -54,11 +58,23 @@ const PATHS = {
   chapters: path.join(DATA_DIR, 'chapters.jsonl'),
   llmFacts: path.join(DATA_DIR, 'llm-facts.jsonl'),
   llmProgress: path.join(DATA_DIR, 'llm-progress.jsonl'),
-  llmCache: path.join(DATA_ROOT, 'v2', 'llm-cache'),
+  llmCache: fs.existsSync(path.join(DATA_ROOT, CORPUS_VERSION, 'llm-cache'))
+    ? path.join(DATA_ROOT, CORPUS_VERSION, 'llm-cache')
+    : path.join(DATA_ROOT, 'v2', 'llm-cache'),
+  genealogy: path.join(DATA_DIR, 'genealogy.jsonl'),
+  names: path.join(DATA_DIR, 'names.jsonl'),
+  events: path.join(DATA_DIR, 'events.jsonl'),
+  passageLabels: path.join(DATA_DIR, 'passage-labels.jsonl'),
+  facets: path.join(DERIVED_DIR, 'facets.json'),
+  labelCoverage: path.join(REPORTS_DIR, 'label-coverage.json'),
   manifest: path.join(DATA_DIR, 'manifest.json'),
   quality: path.join(REPORTS_DIR, 'quality.json'),
   graphReport: path.join(REPORTS_DIR, 'graph.json'),
+  citationsReport: path.join(REPORTS_DIR, 'citations.json'),
+  rollups: path.join(DERIVED_DIR, 'rollups.json'),
+  sqlite: path.join(DERIVED_DIR, 'corpus.sqlite'),
   qualityBaseline: path.join(CODE_ROOT, 'reports-baseline', 'quality.json'),
+  qualityBaselineV2: path.join(CODE_ROOT, 'reports-baseline', 'quality.v2.json'),
   llmUsage: path.join(REPORTS_DIR, 'llm-usage.json'),
 };
 
@@ -118,13 +134,14 @@ function findBok(explicit) {
 }
 
 function ensureDirs() {
-  for (const dir of [DATA_DIR, REPORTS_DIR, PATHS.llmCache]) {
+  for (const dir of [DATA_DIR, REPORTS_DIR, DERIVED_DIR, PATHS.llmCache]) {
     fs.mkdirSync(dir, { recursive: true });
   }
 }
 
 module.exports = {
   SCHEMA_VERSION,
+  CORPUS_VERSION,
   BOOK,
   PATHS,
   LLM,

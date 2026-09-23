@@ -5,6 +5,7 @@ const { normalizeArabic } = require('../util/arabic');
 const { resolve: resolveVocab } = require('../vocab');
 const { REGEX_CONFIDENCE } = require('./regex-bio');
 const { makeEvidenceVerifier } = require('./llm-bio');
+const { juice } = require('../classify');
 
 /**
  * Assemble the final person record from the deterministic structural layer plus
@@ -115,6 +116,8 @@ function toLifeEvent(event, toFact) {
     place: source.place ?? null,
     place_key: source.place ? resolveVocab('places', source.place) : null,
     cause: source.cause ?? null,
+    cause_key: null,
+    age_years: null,
     notes,
   };
 }
@@ -131,6 +134,10 @@ function emptyLife() {
     family: [],
     residences: [],
     traits: [],
+    events: [],
+    wounds: [],
+    ages: [],
+    possessions: [],
   };
 }
 
@@ -143,6 +150,7 @@ function emptyNarration() {
     praise: [],
     criticism: [],
     defenses: [],
+    verdict_keys: [],
   };
 }
 
@@ -164,6 +172,7 @@ function buildPersonRecord({
   extraction = null,
   extractionSource = null,
   meta = null,
+  entryMarker = null,
 }) {
   const verify = makeEvidenceVerifier(raw?.text_body || raw?.text || '');
   const toFact = extractionSource ? makeFactBuilder(extractionSource, verify) : () => null;
@@ -212,7 +221,8 @@ function buildPersonRecord({
   const isWoman =
     placement.section_type === 'women' || Boolean(nasab.is_woman_hint) || extractedIsWoman;
 
-  return {
+  const { person } = juice(
+    {
     schema_version: SCHEMA_VERSION,
     person_id: entry.person_id,
     book: { slug: BOOK.slug, book_id: BOOK.expected_book_id },
@@ -225,12 +235,19 @@ function buildPersonRecord({
       page_start: entry.page_start,
       page_end: entry.page_end,
       char_len: raw?.char_len ?? 0,
+      marker: entryMarker,
+      length_class: 'stub',
+      kind: 'biography',
+      flags: [],
+      footnotes: raw?.footnotes || [],
     },
     identity: {
       display_name: entry.display_name,
       display_name_norm: entry.display_name_norm,
       kunya: nasab.kunya || extractedKunya || null,
+      laqab: null,
       is_woman: isWoman,
+      ism_status: 'unknown',
       nasab: {
         ism: nasab.ism ?? null,
         father: nasab.father ?? null,
@@ -259,9 +276,19 @@ function buildPersonRecord({
       volume_toc: placement.volume_toc ?? null,
       toc_heading: placement.toc_heading ?? null,
       toc_path: placement.toc_path ?? [],
+      entry_kind: 'biography',
+      companionship_status: 'disputed',
+      generation: 'unknown',
+      origin: 'unknown',
+      status: 'unknown',
+      tribe_keys: [],
+      nisba_keys: [],
+      gender_source: 'explicit',
     },
     life,
     narration,
+    labels: [],
+    features: null,
     extraction: {
       layers,
       llm:
@@ -279,7 +306,10 @@ function buildPersonRecord({
           ? { version: meta.version, extracted_at: meta.extracted_at }
           : null,
     },
-  };
+    },
+    { raw, entryMarker, text: raw?.text_body || '' }
+  );
+  return person;
 }
 
 /** Lightweight row for the searchable index. */
@@ -305,6 +335,31 @@ function buildIndexRow(person) {
     char_len: person.entry.char_len,
     death_year_hijri: person.life.death?.year_hijri ?? null,
     layers: person.extraction.layers,
+    entry_marker: person.entry.marker ?? null,
+    entry_kind: person.entry.kind,
+    length_class: person.entry.length_class,
+    labels: (person.labels || []).map((row) => row.key),
+    ism_norm: normalizeArabic(person.identity.nasab.ism) || null,
+    father_norm: normalizeArabic(person.identity.nasab.father) || null,
+    kunya_norm: normalizeArabic(person.identity.kunya) || null,
+    death_place_key: person.life.death?.place_key ?? null,
+    name_keys: [
+      person.identity.display_name_norm,
+      person.identity.nasab.full_name_norm,
+      normalizeArabic(person.identity.kunya),
+      normalizeArabic(person.identity.nasab.ism),
+    ].filter(Boolean),
+    battle_keys: (person.life.battles || []).map((b) => b.key).filter(Boolean),
+    event_keys: (person.life.events || []).map((e) => e.key).filter(Boolean),
+    place_keys: [
+      person.life.death?.place_key,
+      ...(person.life.residences || []).map((r) => r.key),
+    ].filter(Boolean),
+    nisba_keys: person.classification.nisba_keys || [],
+    verdict_keys: person.narration.verdict_keys || [],
+    fought: Boolean(person.features?.fought),
+    shahid: Boolean(person.features?.shahid),
+    label_coverage: person.features?.label_coverage ?? 0,
   };
 }
 

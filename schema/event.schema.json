@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/event.schema.json",
+  "title": "Life event / incident",
+  "description": "One extracted incident from an entry. Vocab key is optional — unknown battles stay with key null.",
+  "type": "object",
+  "required": ["person_id", "value", "kind", "source", "confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "value": { "type": "string", "minLength": 1 },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "battle", "sariyya", "siege", "conquest", "ridda", "fitna",
+        "treaty", "bayah", "hudna",
+        "hijra", "wufd", "embassy", "exile", "settlement",
+        "wound", "captivity", "ransom", "martyrdom", "killing", "plague", "assassination",
+        "meeting", "letter_from_prophet", "letter_to_prophet", "gift", "duaa", "bashara",
+        "marriage", "divorce", "childbirth", "manumission", "inheritance", "land", "horse_or_property",
+        "quran", "poetry", "fatwa", "dream", "karama",
+        "incident"
+      ]
+    },
+    "key": { "type": ["string", "null"] },
+    "year_hijri": { "type": ["integer", "null"] },
+    "place": { "type": ["string", "null"] },
+    "place_key": { "type": ["string", "null"] },
+    "source": { "$ref": "fact.schema.json#/$defs/source" },
+    "evidence": { "type": ["string", "null"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}
