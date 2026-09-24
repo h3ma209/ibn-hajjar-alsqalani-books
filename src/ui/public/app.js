@@ -434,7 +434,7 @@ function yearBlock(event, label) {
 }
 
 function getSiraView() {
-  return localStorage.getItem(SIRA_VIEW_KEY) === 'narrative' ? 'narrative' : 'cards';
+  return localStorage.getItem(SIRA_VIEW_KEY) === 'cards' ? 'cards' : 'narrative';
 }
 
 function setSiraView(view) {
