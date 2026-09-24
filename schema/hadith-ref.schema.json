@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/hadith-ref.schema.json",
+  "title": "Hadith work reference",
+  "description": "A citation of a hadith book or numbered report.",
+  "type": "object",
+  "required": ["person_id", "value", "source", "confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "value": { "type": "string", "minLength": 1 },
+    "work_key": { "type": ["string", "null"] },
+    "verb": { "type": ["string", "null"] },
+    "number": { "type": ["string", "null"] },
+    "source": { "$ref": "fact.schema.json#/$defs/source" },
+    "evidence": { "type": ["string", "null"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

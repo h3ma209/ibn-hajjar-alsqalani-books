@@ -25,6 +25,12 @@ const SCHEMA_FILES = [
   'passage-label.schema.json',
   'event.schema.json',
   'name.schema.json',
+  'verdict.schema.json',
+  'isnad.schema.json',
+  'hadith-ref.schema.json',
+  'timeline.schema.json',
+  'identity-link.schema.json',
+  'page-map.schema.json',
 ];
 
 let ajv = null;
@@ -51,6 +57,12 @@ const SCHEMA_IDS = {
   passageLabel: 'https://isabah-corpus.local/schema/passage-label.schema.json',
   event: 'https://isabah-corpus.local/schema/event.schema.json',
   name: 'https://isabah-corpus.local/schema/name.schema.json',
+  verdict: 'https://isabah-corpus.local/schema/verdict.schema.json',
+  isnad: 'https://isabah-corpus.local/schema/isnad.schema.json',
+  hadithRef: 'https://isabah-corpus.local/schema/hadith-ref.schema.json',
+  timeline: 'https://isabah-corpus.local/schema/timeline.schema.json',
+  identityLink: 'https://isabah-corpus.local/schema/identity-link.schema.json',
+  pageMap: 'https://isabah-corpus.local/schema/page-map.schema.json',
 };
 
 function validatorFor(kind) {

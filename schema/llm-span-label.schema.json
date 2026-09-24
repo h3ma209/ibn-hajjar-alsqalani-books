@@ -1,0 +1,31 @@
+{
+  "name": "span_label",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["labels"],
+    "properties": {
+      "labels": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["i", "label"],
+          "properties": {
+            "i": { "type": "integer" },
+            "label": {
+              "type": "string",
+              "enum": [
+                "nasab", "name_dispute", "isnad", "hadith_matn", "citation", "crossref",
+                "battle", "event", "death", "birth", "age", "office", "family",
+                "praise", "criticism", "defense", "ibn_hajar_voice", "poetry", "quran",
+                "editor_footnote", "heading", "boilerplate", "unlabeled"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

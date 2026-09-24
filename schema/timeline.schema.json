@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/timeline.schema.json",
+  "title": "Person timeline",
+  "description": "Ordered Hijri-year points derived from typed life events. LLM only fills relative phrases.",
+  "type": "object",
+  "required": ["person_id", "items"],
+  "additionalProperties": false,
+  "properties": {
+    "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "items": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["kind", "value", "source"],
+        "additionalProperties": false,
+        "properties": {
+          "kind": { "type": "string" },
+          "value": { "type": "string", "minLength": 1 },
+          "year_hijri": { "type": ["integer", "null"] },
+          "key": { "type": ["string", "null"] },
+          "source": { "$ref": "fact.schema.json#/$defs/source" }
+        }
+      }
+    }
+  }
+}

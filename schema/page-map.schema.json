@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/page-map.schema.json",
+  "title": "Page map",
+  "description": "Shamela start_id to printed page. pdf_page stays null until a PDF map exists.",
+  "type": "object",
+  "required": ["start_id", "page_start", "pdf_page"],
+  "additionalProperties": false,
+  "properties": {
+    "person_id": { "type": ["string", "null"] },
+    "start_id": { "type": "integer" },
+    "end_id": { "type": ["integer", "null"] },
+    "page_start": { "type": ["integer", "null"] },
+    "page_end": { "type": ["integer", "null"] },
+    "pdf_page": { "type": ["integer", "null"] },
+    "source": { "type": "string", "enum": ["shamela", "pdf"] }
+  }
+}

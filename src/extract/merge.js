@@ -234,6 +234,7 @@ function buildPersonRecord({
       volume: entry.volume,
       page_start: entry.page_start,
       page_end: entry.page_end,
+      pdf_page: entry.pdf_page ?? null,
       char_len: raw?.char_len ?? 0,
       marker: entryMarker,
       length_class: 'stub',

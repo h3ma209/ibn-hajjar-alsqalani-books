@@ -7,6 +7,7 @@ const { readJsonl, AppendLog, writeJson } = require('../util/jsonl');
 const { mapPool } = require('../util/pool');
 const { LlmClient, BudgetExceededError, FatalLlmError } = require('../extract/llm-client');
 const { extractLlmBio, chunkText, loadPrompt } = require('../extract/llm-bio');
+const { writeCheckpoint, shouldCheckpoint } = require('../extract/checkpoint');
 
 /**
  * The LLM extraction pass.
@@ -103,6 +104,7 @@ async function extract({
   dryRun = false,
   useCache = true,
   clientOptions = {},
+  checkpointEvery = LLM.checkpointEvery,
   log = () => {},
 } = {}) {
   ensureDirs();
@@ -154,10 +156,33 @@ async function extract({
   const progressLog = new AppendLog(PATHS.llmProgress);
 
   let processed = 0;
+  let fetched = 0;
   let failures = 0;
   let budgetHit = false;
   let fatalError = null;
   const startedAt = Date.now();
+
+  async function persistCheckpoint(status, extra = {}) {
+    await factsLog.flush();
+    await progressLog.flush();
+    writeCheckpoint(PATHS.extractCheckpoint, {
+      kind: 'extraction-checkpoint',
+      pass: 'bio',
+      status,
+      prompt_version: prompt.version,
+      model: client.model,
+      targets: targets.length,
+      pending: pending.length,
+      processed,
+      fetched,
+      failures,
+      checkpoint_every: checkpointEvery,
+      spent_usd: Number(client.usage.cost_usd.toFixed(4)),
+      cache_hits: client.usage.cache_hits,
+      resume_command: 'node src/cli.js extract',
+      ...extra,
+    });
+  }
 
   const { stopped } = await mapPool(
     pending,
@@ -168,7 +193,13 @@ async function extract({
           qism: target.placement.placement.qism,
           sectionType: target.placement.placement.section_type,
         });
-        return { person_id: target.raw.person_id, entry_number: target.raw.entry_number, extraction: data, meta };
+        return {
+          person_id: target.raw.person_id,
+          entry_number: target.raw.entry_number,
+          extraction: data,
+          meta,
+          fetched: !meta.cached,
+        };
       } catch (err) {
         if (err instanceof BudgetExceededError) {
           budgetHit = true;
@@ -181,6 +212,7 @@ async function extract({
         return {
           person_id: target.raw.person_id,
           entry_number: target.raw.entry_number,
+          fetched: true,
           error: String(err.message || err).slice(0, 500),
         };
       }
@@ -188,10 +220,12 @@ async function extract({
     async (result) => {
       if (result.stop) {
         progressLog.append({ ...result, at: new Date().toISOString() });
+        await persistCheckpoint('stopped', { last_person_id: result.person_id, error: result.error });
         return 'stop';
       }
 
-      factsLog.append(result);
+      const { fetched: didFetch, ...row } = result;
+      factsLog.append(row);
       progressLog.append({
         person_id: result.person_id,
         ok: !result.error,
@@ -201,23 +235,30 @@ async function extract({
 
       if (result.error) failures += 1;
       processed += 1;
+      if (didFetch) fetched += 1;
 
-      if (processed % 50 === 0) {
+      if (shouldCheckpoint(fetched, checkpointEvery)) {
         const elapsed = (Date.now() - startedAt) / 1000;
         log(
-          `  ${processed}/${pending.length} done, ${failures} failed, ` +
-            `$${client.usage.cost_usd.toFixed(4)} spent, ${(processed / elapsed).toFixed(1)}/s`
+          `  bio checkpoint ${fetched} fetched / ${processed}/${pending.length} processed, ` +
+            `${failures} failed, $${client.usage.cost_usd.toFixed(4)}, ` +
+            `${(processed / Math.max(elapsed, 0.001)).toFixed(1)}/s`
         );
+        await persistCheckpoint('running', { last_person_id: result.person_id });
       }
 
       if (client.budgetRemaining() <= 0) {
         budgetHit = true;
+        await persistCheckpoint('budget', { last_person_id: result.person_id });
         return 'stop';
       }
       return undefined;
     }
   );
 
+  await persistCheckpoint(budgetHit || fatalError ? 'stopped' : 'complete', {
+    last_person_id: null,
+  });
   await factsLog.close();
   await progressLog.close();
 
@@ -250,6 +291,7 @@ async function extract({
   return {
     estimate,
     processed,
+    fetched,
     failures,
     usage,
     budget_exhausted: budgetHit,

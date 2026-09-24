@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/identity-link.schema.json",
+  "title": "Identity link",
+  "description": "A proposed same-person link across person_id namespaces. Empty until a second book is ingested.",
+  "type": "object",
+  "required": ["from_id", "to_id", "method", "score", "evidence"],
+  "additionalProperties": false,
+  "properties": {
+    "from_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "to_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "method": {
+      "type": "string",
+      "enum": ["name_nasab", "manual"]
+    },
+    "score": { "type": "number", "minimum": 0, "maximum": 1 },
+    "evidence": { "type": ["string", "null"] },
+    "from_book": { "type": ["string", "null"] },
+    "to_book": { "type": ["string", "null"] }
+  }
+}

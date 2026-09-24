@@ -12,10 +12,12 @@ const { compareToBaseline } = require('./report/quality');
 const { ingest } = require('./pipeline/ingest');
 const { build } = require('./pipeline/build');
 const { extract } = require('./pipeline/extract');
+const { extractPass, ALL_KINDS } = require('./pipeline/extract-pass');
 const { graph } = require('./pipeline/graph');
 const { enrich } = require('./pipeline/enrich');
 const { seedFromV2 } = require('./pipeline/seed');
 const { buildDb } = require('./pipeline/db');
+const { link } = require('./pipeline/link');
 
 const log = (message) => process.stderr.write(`${message}\n`);
 const out = (data) => process.stdout.write(`${JSON.stringify(data, null, 2)}\n`);
@@ -79,10 +81,12 @@ function help() {
 Pipeline
   ingest [--bok <path>] [--limit n]   Decode the .bok into raw-text/placement/chapters JSONL
   extract [options]                    Run LLM extraction into llm-facts.jsonl
+  extract-pass [options]               Typed leftover passes (kinds/spans/verdicts/isnad/repair)
   build [--no-llm] [--limit n]         Assemble persons.jsonl + index.jsonl + quality report
   seed                                 Copy v2 ingest + llm-facts into data/v3 (no overwrite)
   graph                                Resolve cross-references into edges.jsonl + citations.jsonl
   enrich                               Genealogy, name index, facets from persons.jsonl
+  link [--other <persons.jsonl>]       Page-map stub + identity-links (empty without --other)
   db                                   Pack JSONL into data/v3/derived/corpus.sqlite (FTS5)
 
 Verification
@@ -106,6 +110,18 @@ extract options
   --dry-run           Print the cost estimate and exit
   --no-resume         Re-extract entries that already succeeded
   --no-cache          Ignore the on-disk response cache
+  --checkpoint-every n  Flush checkpoint every n fetched persons (default 50)
+
+extract-pass options
+  --kind all|bio|repair|kinds|spans|verdicts|isnad|hadith|timeline
+  --limit n           Cap persons per pass
+  --concurrency n     Override LLM_PASS_CONCURRENCY (default 16)
+  --max-cost <usd>    Override LLM_MAX_COST
+  --checkpoint-every n
+  --dry-run           Count leftovers and exit
+  --no-resume         Redo persons already in that pass JSONL
+  --no-cache          Ignore the on-disk response cache
+  --no-apply          Write pass JSONL only; skip merge into persons
 
 Environment: copy .env.example to .env for OPENAI_API_KEY, OPENAI_BASE_URL, LLM_MODEL.
 `);
@@ -169,6 +185,7 @@ async function cmdExtract(args) {
     dryRun: args.flags['dry-run'] === true,
     useCache: args.flags['no-cache'] !== true,
     clientOptions,
+    checkpointEvery: intFlag(args.flags, 'checkpoint-every', LLM.checkpointEvery),
     log,
   });
   out({
@@ -178,6 +195,48 @@ async function cmdExtract(args) {
     cost_usd: result.usage.cost_usd,
     cache_hits: result.usage.cache_hits,
     budget_exhausted: Boolean(result.budget_exhausted),
+  });
+}
+
+async function cmdExtractPass(args) {
+  requireArtifact(PATHS.rawText, 'Run `npm run ingest` first.');
+  const kind = typeof args.flags.kind === 'string' ? args.flags.kind : 'all';
+  if (kind !== 'all' && !ALL_KINDS.includes(kind)) {
+    throw new Error(`Unknown --kind ${kind}. Use ${['all', ...ALL_KINDS].join('|')}`);
+  }
+  if (kind !== 'bio') requireArtifact(PATHS.persons, 'Run `npm run build` first.');
+
+  const clientOptions = {};
+  if (typeof args.flags.model === 'string') clientOptions.model = args.flags.model;
+  if (args.flags['max-cost'] !== undefined) {
+    clientOptions.maxCostUsd = intFlag(args.flags, 'max-cost', LLM.maxCostUsd);
+  }
+  if (args.flags.concurrency !== undefined) {
+    clientOptions.concurrency = intFlag(args.flags, 'concurrency', LLM.passConcurrency);
+  }
+
+  const result = await extractPass({
+    kind,
+    limit: intFlag(args.flags, 'limit'),
+    resume: args.flags['no-resume'] !== true,
+    dryRun: args.flags['dry-run'] === true,
+    useCache: args.flags['no-cache'] !== true,
+    apply: args.flags['no-apply'] !== true,
+    clientOptions,
+    checkpointEvery: intFlag(args.flags, 'checkpoint-every', LLM.checkpointEvery),
+    log,
+  });
+  out({
+    results: result.results.map((row) => ({
+      pass: row.pass || 'bio',
+      processed: row.processed,
+      fetched: row.fetched,
+      failures: row.failures,
+      pending: row.pending,
+      cost_usd: row.usage?.cost_usd,
+      budget_exhausted: Boolean(row.budget_exhausted),
+    })),
+    applied: result.applied,
   });
 }
 
@@ -205,6 +264,11 @@ const VALIDATE_TARGETS = [
   ['index', () => PATHS.index],
   ['event', () => PATHS.events],
   ['passageLabel', () => PATHS.passageLabels],
+  ['verdict', () => PATHS.verdicts],
+  ['isnad', () => PATHS.isnads],
+  ['timeline', () => PATHS.timelines],
+  ['identityLink', () => PATHS.identityLinks],
+  ['pageMap', () => PATHS.pageMap],
   ['edge', () => PATHS.edges],
   ['citation', () => PATHS.citations],
 ];
@@ -410,14 +474,23 @@ async function cmdEnrich() {
   out(result);
 }
 
+async function cmdLink(args) {
+  requireArtifact(PATHS.persons, 'Run `npm run build` first.');
+  const other = typeof args.flags.other === 'string' ? args.flags.other : null;
+  const result = await link({ otherPath: other, log });
+  out(result);
+}
+
 const COMMANDS = {
   seed: cmdSeed,
   ingest: cmdIngest,
   build: cmdBuild,
   structural: cmdBuild,
   extract: cmdExtract,
+  'extract-pass': cmdExtractPass,
   graph: cmdGraph,
   enrich: cmdEnrich,
+  link: cmdLink,
   db: cmdDb,
   validate: cmdValidate,
   gate: cmdGate,

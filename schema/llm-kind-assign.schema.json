@@ -1,0 +1,38 @@
+{
+  "name": "kind_assign",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["assignments"],
+    "properties": {
+      "assignments": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "kind"],
+          "properties": {
+            "id": { "type": "integer" },
+            "kind": {
+              "type": "string",
+              "enum": [
+                "islam", "hijra_habasha", "hijra_madinah", "bayah", "first_arrival",
+                "saw", "heard", "accompanied", "served", "sent_by", "wrote_to", "prayed_with", "claimed_only",
+                "physical", "worship", "character", "occupation",
+                "adala", "dabt", "isnad_defect", "identity", "companionship_denied", "scribal_error", "other",
+                "ism", "kunya", "laqab", "jahili", "prophetic_rename",
+                "battle", "sariyya", "siege", "conquest", "ridda", "fitna",
+                "treaty", "hudna", "hijra", "wufd", "embassy", "exile", "settlement",
+                "wound", "captivity", "ransom", "martyrdom", "killing", "plague", "assassination",
+                "meeting", "letter_from_prophet", "letter_to_prophet", "gift", "duaa", "bashara",
+                "marriage", "divorce", "childbirth", "manumission", "inheritance", "land", "horse_or_property",
+                "quran", "poetry", "fatwa", "dream", "karama", "incident"
+              ]
+            }
+          }
+        }
+      }
+    }
+  }
+}

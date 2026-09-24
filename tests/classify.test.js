@@ -90,6 +90,26 @@ test('every sentence gets a label or unlabeled, offsets inside text', () => {
     assert.ok(span.label);
   }
   assert.equal(labelSentence('قلت: والصواب خلاف ذلك'), 'ibn_hajar_voice');
+  assert.equal(labelSentence('أبان بن سعيد بن العاص بن أمية القرشي الأموي'), 'nasab');
+  assert.equal(labelSentence('شهد بدرا وخيبر.'), 'battle');
+  assert.equal(labelSentence('قتل يوم اليرموك سنة خمس عشرة.'), 'death');
+  assert.equal(labelSentence('مات سنة ثلاث عشرة.'), 'death');
+  assert.equal(labelSentence('مات وهو ابن ثمانين سنة.'), 'age');
+  assert.equal(labelSentence('قال البخاريّ، وأبو حاتم الرّازيّ: له صحبة.'), 'citation');
+  assert.equal(labelSentence('وصلّى اللَّه عليه وسلم.'), 'unlabeled');
+  assert.equal(labelSentence('أسلم أبان أيام خيبر.'), 'event');
+  assert.equal(labelSentence('روى عنه ابنه المحرر، ومن الصحابة ابن عمر.'), 'citation');
+  assert.equal(labelSentence('استعمله عمر على البحرين.'), 'office');
+  assert.equal(labelSentence('أقمت معه حتى مات أدور معه في بيوت نسائه.'), 'unlabeled');
+  assert.equal(labelSentence('توفي أبو هريرة سنة سبع وخمسين.'), 'death');
+  assert.equal(labelSentence('عاش أبو هريرة ثمانيا وسبعين سنة.'), 'age');
+  assert.equal(labelSentence('أمه أميمة بنت صفيح.'), 'family');
+  assert.equal(labelSentence('سيأتي في ترجمتها.'), 'crossref');
+  assert.equal(
+    labelSentence('وفي البخاريّ، وأبي داود، عن أبي هريرة، قال: بعث رسول اللَّه أبان بن سعيد بن العاص على سرية.'),
+    'citation'
+  );
+  assert.equal(labelSentence('والمعروف أن المأمور بذلك سعيد بن العاص، وهو ابن أخي أبان بن سعيد.'), 'family');
 });
 
 test('genealogy suffix overlap scores shared ancestors', () => {

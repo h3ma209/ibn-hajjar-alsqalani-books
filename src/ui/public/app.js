@@ -28,17 +28,47 @@ const CHAPTER_KIND = {
   block_heading: 'باب', volume_heading: 'مجلد', other: 'أخرى',
 };
 const LABEL_AR = {
-  nasab: 'نسب', name_dispute: 'خلاف اسم', isnad: 'إسناد', hadith_matn: 'متن',
+  nasab: 'نسب', name_dispute: 'خلاف اسم', isnad: 'إسناد', hadith_matn: 'متن حديث',
   citation: 'استشهاد', crossref: 'إحالة', battle: 'غزو', event: 'حادثة',
   death: 'وفاة', birth: 'ولادة', age: 'عمر', office: 'ولاية', family: 'قرابة',
-  praise: 'توثيق', criticism: 'جرح', defense: 'دفاع', ibn_hajar_voice: 'كلام المصنف',
+  praise: 'توثيق', criticism: 'جرح', defense: 'دفاع', ibn_hajar_voice: 'كلام ابن حجر',
   poetry: 'شعر', quran: 'قرآن', editor_footnote: 'حاشية', heading: 'عنوان',
-  boilerplate: 'قالب', unlabeled: 'بلا وسم',
+  boilerplate: 'قالب', unlabeled: 'سرد',
+};
+const LABEL_HINT = {
+  nasab: 'اسم المترجم ونسبه',
+  name_dispute: 'خلاف في تعيين الاسم',
+  isnad: 'سلسلة رواة',
+  hadith_matn: 'متن حديث أو قول نبوي',
+  citation: 'نقل عن عالم أو كتاب',
+  crossref: 'إحالة إلى موضع آخر في الإصابة',
+  battle: 'غزوة أو مشهد قتال',
+  event: 'حادثة: وفادة أو أسر أو جرح أو بيعة',
+  death: 'وفاة أو قتل',
+  birth: 'ولادة أو مولد',
+  age: 'عمر أو سنّ',
+  office: 'ولاية أو إمرة أو قضاء',
+  family: 'قرابة أو زوج أو ولد',
+  praise: 'تعديل أو ثناء',
+  criticism: 'جرح أو تضعيف أو وهم',
+  defense: 'جواب ابن حجر عن اعتراض',
+  ibn_hajar_voice: 'كلام المصنف بصيغة قلتُ',
+  poetry: 'بيت أو شاهد شعري',
+  quran: 'آية أو قراءة',
+  editor_footnote: 'حاشية المحقق',
+  heading: 'رقم الترجمة أو عنوان',
+  boilerplate: 'صيغة مكررة',
+  unlabeled: 'سرد لم يُصنَّف',
 };
 const SPAN_CLASS = {
-  nasab: 'span-nasab', battle: 'span-battle', event: 'span-event',
-  isnad: 'span-isnad', citation: 'span-cite', criticism: 'span-crit',
-  family: 'span-family', death: 'span-death', praise: 'span-ok',
+  nasab: 'span-nasab', name_dispute: 'span-dispute', isnad: 'span-isnad',
+  hadith_matn: 'span-matn', citation: 'span-cite', crossref: 'span-xref',
+  battle: 'span-battle', event: 'span-event', death: 'span-death',
+  birth: 'span-birth', age: 'span-age', office: 'span-office',
+  family: 'span-family', praise: 'span-ok', criticism: 'span-crit',
+  defense: 'span-defense', ibn_hajar_voice: 'span-voice', poetry: 'span-poetry',
+  quran: 'span-quran', editor_footnote: 'span-note', heading: 'span-head',
+  boilerplate: 'span-boiler', unlabeled: 'span-plain',
 };
 
 const TYPE_LABEL = {
@@ -427,16 +457,60 @@ function isStubSummary(text) {
   return !text || /^\d+\s*[-–—]/.test(text.trim()) || text.trim().length < 16;
 }
 
+function cleanSiraText(text) {
+  return String(text || '')
+    .replace(/\[\s*\(\s*\d+\s*\)\s*\]/gu, '')
+    .replace(/^\d+\s*[-–—:]\s*/u, '')
+    .replace(/\s+/gu, ' ')
+    .trim();
+}
+
+function clipSira(text, max = 240) {
+  const src = cleanSiraText(text);
+  if (src.length <= max) return src;
+  return `${src.slice(0, max).replace(/\s+\S*$/u, '')}…`;
+}
+
+function factStory(fact) {
+  if (!fact) return '';
+  const value = cleanSiraText(fact.value ?? fact.name ?? '');
+  const evidence = cleanSiraText(fact.evidence || '');
+  if (evidence && evidence.length > Math.max(18, value.length + 6)) return clipSira(evidence, 280);
+  return clipSira(value, 280);
+}
+
+function uniqueStory(items, limit = 8) {
+  const seen = new Set();
+  const out = [];
+  for (const raw of items) {
+    const text = cleanSiraText(raw);
+    if (!text || text.length < 3) continue;
+    const key = text.replace(/[.؟!،:]+$/u, '').slice(0, 48);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(text);
+    if (out.length >= limit) break;
+  }
+  return out;
+}
+
+function endSentence(text) {
+  const src = cleanSiraText(text);
+  if (!src) return '';
+  return /[.؟!]$/u.test(src) ? src : `${src}.`;
+}
+
 function yearNarrative(event, verb) {
   if (!event) return '';
   const years = event.year_candidates?.length
     ? event.year_candidates
     : (event.year_hijri != null ? [event.year_hijri] : []);
-  if (!years.length && !event.place) return '';
+  if (!years.length && !event.place && !event.cause) return '';
   let phrase = verb;
   if (years.length === 1) phrase += ` سنة ${years[0]} للهجرة`;
   else if (years.length > 1) phrase += ` في إحدى سنوات ${joinArabic(years.map(String))} للهجرة`;
   if (event.place) phrase += ` في ${event.place}`;
+  if (event.cause) phrase += `، وسبب ذلك ${event.cause}`;
   if (event.year_uncertain) phrase += '، والتاريخ متردّد في المصادر';
   return phrase;
 }
@@ -452,87 +526,253 @@ function qismNarrative(qism, isWoman) {
   return map[qism] || '';
 }
 
-function composeSiraNarrative(p) {
-  const { identity, classification, life } = p;
+const ORIGIN_AR = { muhajir: 'من المهاجرين', ansari: 'من الأنصار' };
+const STATUS_AR = { mawla: 'مولى', free: 'حرّ' };
+const GEN_AR = { mukhadram: 'من المخضرمين', tabii_mentioned: 'من التابعين المذكورين في الكتاب' };
+const EVENT_VERB = {
+  battle: 'شهد', sariyya: 'خرج في سرية', siege: 'حضر حصار', conquest: 'شهد فتح',
+  ridda: 'شهد الردة في', fitna: 'أدرك فتنة', treaty: 'شهد', bayah: 'بايع في',
+  hudna: 'شهد هدنة', hijra: 'هاجر', wufd: 'وفد', embassy: 'أُرسل في',
+  exile: 'أُخرج في', settlement: 'نزل', wound: 'جرح يوم', captivity: 'أُسر في',
+  ransom: 'فودي في', martyrdom: 'استشهد في', killing: 'قُتل في', plague: 'أصابه الطاعون في',
+  assassination: 'اغتيل', meeting: 'لقي النبيّ في', letter_from_prophet: 'كتب إليه النبيّ في',
+  letter_to_prophet: 'كتب إلى النبيّ في', gift: 'وُهب', duaa: 'دعا له النبيّ في',
+  bashara: 'بُشّر في', marriage: 'تزوج', divorce: 'طلّق', childbirth: 'وُلد له في',
+  manumission: 'أُعتق', inheritance: 'ورث', land: 'أُقطع أرضا في',
+  horse_or_property: 'ذُكر له مال في', quran: 'له قراءة في', poetry: 'له شعر في',
+  fatwa: 'أفتى في', dream: 'رؤيا في', karama: 'كرامة في', incident: '',
+};
+
+function foldAr(text) {
+  return String(text || '').replace(/[ًٌٍَُِّْٱ]/gu, '').replace(/[أإآ]/gu, 'ا');
+}
+
+function eventStory(ev) {
+  const evidence = cleanSiraText(ev.evidence || '');
+  const value = cleanSiraText(ev.value || '');
+  if (evidence.length > 18 && evidence !== value) return clipSira(evidence, 220);
+  const verb = EVENT_VERB[ev.kind] || 'ذُكر في';
+  const when = ev.year_hijri != null ? ` سنة ${ev.year_hijri}` : '';
+  const where = ev.place ? ` في ${ev.place}` : '';
+  if (!value && !verb) return '';
+  let head = value || verb;
+  if (verb && value) {
+    const fv = foldAr(value);
+    const fb = foldAr(verb);
+    if (value.startsWith(verb) || fb.includes(fv) || fv.includes(fb)) head = verb.length >= value.length ? verb : value;
+    else head = `${verb} ${value}`;
+  }
+  return clipSira(`${head}${when}${where}`, 180);
+}
+
+function alreadyTold(text, pool) {
+  const needle = foldAr(cleanSiraText(text));
+  if (!needle || needle.length < 6) return true;
+  return (pool || []).some((row) => {
+    const hay = foldAr(cleanSiraText(row));
+    if (!hay) return false;
+    const a = needle.slice(0, 22);
+    const b = hay.slice(0, 22);
+    return hay.includes(a) || needle.includes(b);
+  });
+}
+
+function usefulSummary(summary, name, fullName) {
+  if (!summary || isStubSummary(summary)) return '';
+  const norm = cleanSiraText(summary);
+  if (!norm) return '';
+  if (fullName && norm.startsWith(fullName) && norm.length < fullName.length + 24) return '';
+  if (name && (norm === name || norm.startsWith(`${name}.`))) return '';
+  return norm.replace(/[.؟!…]+$/u, '').trim();
+}
+
+function composeSiraNarrative(p, ctx = {}) {
+  const { identity, classification, life, narration = {}, entry = {} } = p;
   const name = identity.display_name;
   const fullName = identity.nasab?.full_name;
   const kunya = identity.kunya;
+  const nisba = identity.nasab?.nisba || [];
   const summary = life.summary?.value || (typeof life.summary === 'string' ? life.summary : '');
   const paragraphs = [];
+  const used = new Set();
+  const remember = (text) => {
+    const key = cleanSiraText(text).replace(/[.؟!،:]+$/u, '').slice(0, 40);
+    if (!key || used.has(key)) return false;
+    used.add(key);
+    return true;
+  };
 
   const opener = [];
-  if (identity.is_woman) {
-    opener.push(`في تراجم النساء يذكر ابن حجر ${name}`);
-  } else {
-    opener.push(name);
-  }
+  opener.push(identity.is_woman ? `في تراجم النساء يذكر ابن حجر ${name}` : name);
   if (fullName && fullName !== name) {
     if (fullName.startsWith(name)) {
-      const tail = fullName.slice(name.length).replace(/^[\s،]+/, '').trim();
+      const tail = fullName.slice(name.length).replace(/^[\s،]+/u, '').trim();
       if (tail) opener.push(`من ${tail}`);
     } else {
       opener.push(`واسمه ${fullName}`);
     }
   }
   if (kunya && kunya !== name && !name.includes(kunya)) opener.push(`كنيته ${kunya}`);
+  if (nisba.length) opener.push(`يُنسب ${joinArabic(nisba)}`);
+  if (ORIGIN_AR[classification.origin]) opener.push(ORIGIN_AR[classification.origin]);
+  if (STATUS_AR[classification.status]) opener.push(STATUS_AR[classification.status]);
+  if (GEN_AR[classification.generation]) opener.push(GEN_AR[classification.generation]);
   const qismLine = qismNarrative(classification.qism, identity.is_woman);
   if (qismLine) opener.push(qismLine);
-  if (!isStubSummary(summary)) {
-    opener.push(summary.replace(/[.؟!…]+$/u, '').trim());
+  if (classification.letter) opener.push(`في ${classification.letter}`);
+  const extra = usefulSummary(summary, name, fullName);
+  const storyFacts = uniqueStory([
+    ...(life.conversion || []).map(factStory),
+    ...(life.companionship || []).map(factStory),
+  ], 8);
+  if (extra && !storyFacts.some((line) => alreadyTold(extra, [line]) || alreadyTold(line, [extra]))) {
+    opener.push(extra);
   }
-  paragraphs.push(`${opener.join('، ')}.`);
+  paragraphs.push(endSentence(opener.join('، ')));
 
-  const conversion = factTexts(life.conversion);
-  const companionship = factTexts(life.companionship);
-  if (conversion.length || companionship.length) {
-    const parts = [];
-    if (conversion.length) parts.push(`في الإسلام ${joinArabic(conversion)}`);
-    if (companionship.length) {
-      parts.push(`في الصحبة ${joinArabic(companionship)}`);
-    }
-    paragraphs.push(`${parts.join('، ')}.`);
+  const alts = (identity.alternate_names || []).map((n) => n.value || n.name || n).filter(Boolean);
+  const disputes = (identity.name_dispute_notes || []).map(factStory).filter(Boolean);
+  if (alts.length || disputes.length) {
+    const bits = [];
+    if (alts.length) bits.push(`ويقال أيضا ${joinArabic(uniqueStory(alts, 5))}`);
+    if (disputes.length) bits.push(`وفي تعيين اسمه خلاف: ${joinArabic(uniqueStory(disputes, 3))}`);
+    paragraphs.push(endSentence(bits.join('، ')));
+  }
+
+  if (storyFacts.length) {
+    paragraphs.push(storyFacts.map(endSentence).join(' '));
+    storyFacts.forEach(remember);
   }
 
   const birth = yearNarrative(life.birth, 'وُلِد');
+  const birthNotes = (life.birth?.notes || []).map(factStory);
+  if (birth || birthNotes.length) {
+    paragraphs.push(endSentence([birth, ...uniqueStory(birthNotes, 2)].filter(Boolean).join('، ')));
+  }
+
+  const toldSoFar = () => [...paragraphs, ...storyFacts];
+  const eventLines = uniqueStory((life.events || []).map(eventStory), 8)
+    .filter((line) => !alreadyTold(line, toldSoFar()));
+  const battleNames = uniqueStory(factTexts(life.battles), 8);
+  const leftoverBattles = battleNames.filter((bName) =>
+    !alreadyTold(bName, [...toldSoFar(), ...eventLines]) && remember(bName)
+  );
+  if (eventLines.length || leftoverBattles.length) {
+    const bits = eventLines.map(endSentence);
+    if (leftoverBattles.length) {
+      bits.push(endSentence(leftoverBattles.length > 1
+        ? `وشهد ${joinArabic(leftoverBattles)}`
+        : `ويُذكر له حضور ${leftoverBattles[0]}`));
+    }
+    paragraphs.push(bits.join(' '));
+    eventLines.forEach(remember);
+  }
+
+  const offices = uniqueStory((life.offices || []).map((o) => {
+    const story = factStory(o);
+    const extra = [o.role, o.place].filter(Boolean).join(' في ');
+    return extra && story && !story.includes(extra) ? `${story} (${extra})` : story;
+  }), 6);
+  if (offices.length) paragraphs.push(endSentence(`وفي الولايات والمناصب: ${joinArabic(offices)}`));
+
+  const family = uniqueStory((life.family || []).map((f) => {
+    const rel = REL_LABEL[f.relation] || f.relation || '';
+    const nm = cleanSiraText(f.value || f.name || '');
+    return rel ? `${rel} ${nm}`.trim() : nm;
+  }), 8);
+  if (family.length) paragraphs.push(endSentence(`ومن قرابته ${joinArabic(family)}`));
+
+  const residences = uniqueStory(factTexts(life.residences), 5);
+  if (residences.length) paragraphs.push(endSentence(`وسكن ${joinArabic(residences)}`));
+
+  const traits = uniqueStory((life.traits || []).map(factStory), 5);
+  if (traits.length) paragraphs.push(endSentence(`ويُوصف بأنه ${joinArabic(traits)}`));
+
+  const wounds = uniqueStory((life.wounds || []).map(factStory), 4);
+  if (wounds.length) paragraphs.push(endSentence(`وذُكر من جراحه ${joinArabic(wounds)}`));
+
+  const ages = uniqueStory((life.ages || []).map((a) => {
+    if (a.years != null && a.kind === 'at_death') return `عاش نحو ${a.years} سنة`;
+    if (a.years != null && a.kind === 'at_islam') return `أسلم وهو ابن ${a.years} سنة`;
+    return factStory(a);
+  }), 3);
+  if (ages.length) paragraphs.push(endSentence(joinArabic(ages)));
+
+  const goods = uniqueStory((life.possessions || []).map(factStory), 3);
+  if (goods.length) paragraphs.push(endSentence(`وذُكر من ماله ${joinArabic(goods)}`));
+
+  const from = uniqueStory((narration.narrated_from || []).map((f) => f.value || f.name), 8);
+  const to = uniqueStory((narration.narrated_to || []).map((f) => f.value || f.name), 8);
+  const riwaya = [];
+  if (from.length) riwaya.push(`روى عن ${joinArabic(from)}`);
+  if (to.length) riwaya.push(`روى عنه ${joinArabic(to)}`);
+  if (narration.hadith_count?.count != null) {
+    riwaya.push(`ويُذكر له نحو ${narration.hadith_count.count} حديث`);
+  } else if (narration.hadith_count?.value) {
+    riwaya.push(`وفي عدد حديثه ${narration.hadith_count.value}`);
+  }
+  if (narration.is_prolific) riwaya.push('وهو من المكثرين');
+  if (riwaya.length) paragraphs.push(endSentence(riwaya.join('، ')));
+
+  const praise = uniqueStory((narration.praise || []).map(factStory), 4);
+  const criticism = uniqueStory((narration.criticism || []).map(factStory), 4);
+  const defenses = uniqueStory((narration.defenses || []).map(factStory), 3);
+  if (praise.length) paragraphs.push(endSentence(`وفي التوثيق ${joinArabic(praise)}`));
+  if (criticism.length) paragraphs.push(endSentence(`وفي الجرح ${joinArabic(criticism)}`));
+  if (defenses.length) paragraphs.push(endSentence(`ودفع ابن حجر عنه بأن ${joinArabic(defenses)}`));
+
+  const authorities = uniqueStory((ctx.citations || []).map((c) => c.authority || c.value), 8);
+  if (authorities.length) {
+    paragraphs.push(endSentence(`واستشهد ابن حجر في هذه الترجمة بـ${joinArabic(authorities)}`));
+  }
+
   const death = yearNarrative(life.death, 'وتُوفّي');
-  if (birth || death) paragraphs.push(`${[birth, death].filter(Boolean).join('، ')}.`);
-
-  const battles = factTexts(life.battles);
-  if (battles.length) {
-    paragraphs.push(battles.length > 1
-      ? `شهد ${joinArabic(battles)}.`
-      : `يُذكر له حضور ${battles[0]}.`);
+  const deathNotes = uniqueStory((life.death?.notes || []).map(factStory), 3);
+  if (death || deathNotes.length) {
+    paragraphs.push(endSentence([death, ...deathNotes].filter(Boolean).join(' ')));
   }
 
-  const offices = (life.offices || [])
-    .map((o) => [o.value, o.role, o.place].filter(Boolean).join(' — '))
-    .filter(Boolean);
-  if (offices.length) {
-    paragraphs.push(`وله في الولايات والمناصب ذكر ${joinArabic(offices)}.`);
-  }
+  const excerpts = siraExcerptsFromText(ctx.text || '', used, entry.char_len || 0, paragraphs);
+  if (excerpts.length) paragraphs.push(...excerpts);
 
-  const family = (life.family || [])
-    .map((f) => {
-      const rel = REL_LABEL[f.relation] || f.relation || '';
-      const nm = f.value || f.name || '';
-      return rel ? `${rel} ${nm}`.trim() : nm;
-    })
-    .filter(Boolean);
-  if (family.length) paragraphs.push(`في النسب والقرابة: ${joinArabic(family)}.`);
-
-  const residences = factTexts(life.residences);
-  if (residences.length) paragraphs.push(`ومن مساكنه أو مقامه ${joinArabic(residences)}.`);
-
-  const traits = factTexts(life.traits);
-  if (traits.length) {
-    paragraphs.push(traits.length > 1
-      ? `يصفه ابن حجر بأنه ${joinArabic(traits)}.`
-      : `${traits[0]}.`);
-  }
-
-  const body = paragraphs.filter((para) => para.replace(/[.؟!…\s]/gu, '').length > 12);
-  if (body.length <= 1 && isStubSummary(summary) && !hasLifeContent(p)) return [];
+  const body = paragraphs.filter((para) => para.replace(/[.؟!…\s]/gu, '').length > 10);
+  if (body.length <= 1 && isStubSummary(summary) && !hasLifeContent(p) && !authorities.length) return [];
   return body;
+}
+
+function siraExcerptsFromText(text, used, charLen, told = []) {
+  const source = String(text || '').trim();
+  if (!source) return [];
+  const parts = (typeof splitSentencesLocal === 'function'
+    ? splitSentencesLocal(source)
+    : source.split(/(?<=[.؟!])\s+/u).map((text) => ({ text })));
+  const prefer = new Set([
+    'event', 'battle', 'death', 'office', 'family', 'ibn_hajar_voice',
+    'name_dispute', 'praise', 'criticism', 'age', 'birth', 'citation',
+    'hadith_matn', 'defense',
+  ]);
+  const short = charLen > 0 && charLen < 900;
+  const picked = [];
+  for (const part of parts) {
+    const quote = cleanSiraText(part.text || part.quote || '');
+    if (quote.length < 12 || quote.length > 320) continue;
+    if (/^[\u0600-\u06FF\s]{1,40}\s*:?\s*$/u.test(quote)) continue;
+    if (alreadyTold(quote, [...told, ...picked])) continue;
+    const label = typeof labelQuote === 'function' ? labelQuote(quote) : 'unlabeled';
+    if (label === 'heading' || label === 'boilerplate' || label === 'editor_footnote') continue;
+    if (!prefer.has(label) && !(short && label === 'unlabeled')) continue;
+    const key = quote.replace(/[.؟!،:]+$/u, '').slice(0, 40);
+    if (used.has(key)) continue;
+    used.add(key);
+    picked.push(quote);
+    if (picked.length >= (short ? 10 : 8)) break;
+  }
+  if (!picked.length) return [];
+  const chunks = [];
+  for (let i = 0; i < picked.length; i += 3) {
+    chunks.push(picked.slice(i, i + 3).map(endSentence).join(' '));
+  }
+  return chunks;
 }
 
 function renderSiraCards(p) {
@@ -556,8 +796,8 @@ function renderSiraCards(p) {
   </div>`;
 }
 
-function renderSiraNarrative(p) {
-  const paragraphs = composeSiraNarrative(p);
+function renderSiraNarrative(p, ctx = {}) {
+  const paragraphs = composeSiraNarrative(p, ctx);
   if (!paragraphs.length) {
     return emptyState(
       'لا يكفي من المعلومات لسرد السيرة',
@@ -568,12 +808,12 @@ function renderSiraNarrative(p) {
     ${paragraphs.map((para, i) =>
       `<p class="${i === 0 ? 'sira-narrative-lead' : ''}">${esc(para)}</p>`
     ).join('')}
-    <footer class="sira-narrative-foot muted">مُؤلَّف من حقول الترجمة — ليس نصّ ابن حجر حرفياً</footer>
+    <footer class="sira-narrative-foot muted">سرد مركّب من حقول الترجمة وشواهد النص — ليس حرف ابن حجر بنظمه</footer>
   </article>`;
 }
 
-function renderSiraContent(p, view) {
-  if (view === 'narrative') return renderSiraNarrative(p);
+function renderSiraContent(p, view, ctx = {}) {
+  if (view === 'narrative') return renderSiraNarrative(p, ctx);
   const cards = renderSiraCards(p);
   const summary = p.life.summary?.value || (typeof p.life.summary === 'string' ? p.life.summary : '');
   if (!summary && !hasLifeContent(p)) {
@@ -589,7 +829,7 @@ function siraViewToggle(view) {
   </div>`;
 }
 
-function initSiraView(container, person) {
+function initSiraView(container, person, ctx = {}) {
   const toolbar = container.querySelector('.sira-toolbar');
   const content = container.querySelector('.sira-content');
   if (!toolbar || !content) return;
@@ -602,7 +842,7 @@ function initSiraView(container, person) {
         b.classList.toggle('active', b.dataset.siraView === view);
       });
       content.dataset.siraView = view;
-      content.innerHTML = renderSiraContent(person, view);
+      content.innerHTML = renderSiraContent(person, view, ctx);
     });
   });
 }
@@ -642,11 +882,12 @@ function drawGraph(svg, graph) {
 function initTabs(container) {
   const bar = container.querySelector('.tab-bar');
   if (!bar) return;
-  bar.querySelectorAll('button').forEach((btn) => {
+  const panes = container.querySelectorAll(':scope > .tab-wrap + .tab-pane, :scope > .tab-pane');
+  bar.querySelectorAll('button[data-tab]').forEach((btn) => {
     btn.addEventListener('click', () => {
-      bar.querySelectorAll('button').forEach((b) => b.classList.remove('active'));
+      bar.querySelectorAll('button[data-tab]').forEach((b) => b.classList.remove('active'));
       btn.classList.add('active');
-      container.querySelectorAll('.tab-pane').forEach((p) => {
+      panes.forEach((p) => {
         p.classList.toggle('active', p.dataset.tab === btn.dataset.tab);
       });
     });
@@ -729,7 +970,7 @@ async function renderPerson(id) {
 
     <div class="tab-pane active" data-tab="life">
       <div class="sira-toolbar">${siraViewToggle(siraView)}</div>
-      <div class="sira-content" data-sira-view="${siraView}">${renderSiraContent(p, siraView)}</div>
+      <div class="sira-content" data-sira-view="${siraView}">${renderSiraContent(p, siraView, { citations: data.citations || [] })}</div>
     </div>
 
     <div class="tab-pane" data-tab="riwaya">
@@ -774,15 +1015,26 @@ async function renderPerson(id) {
       <div class="raw-box">
         <div class="raw-toolbar">
           <span>${icon('book')} نص الترجمة من الطبعة</span>
-          <span><span id="raw-len"></span> <button type="button" id="copy-raw">${icon('copy')} نسخ</button></span>
+          <span class="raw-toolbar-end">
+            <span id="raw-len"></span>
+            <div class="raw-views" role="tablist" aria-label="عرض النص">
+              <button type="button" class="active" data-raw-view="split">مفصول</button>
+              <button type="button" data-raw-view="flow">متصل</button>
+            </div>
+            <button type="button" id="copy-raw">${icon('copy')} نسخ</button>
+          </span>
         </div>
-        <div class="span-legend muted" id="span-legend" hidden></div>
-        <div class="raw-body" id="raw-text">يُحمَّل…</div>
+        <p class="raw-hint muted" id="raw-hint-split">كل فقرة جملة. الوسم يبيّن نوعها بعد فحص الكلمات الدالة.</p>
+        <p class="raw-hint muted" id="raw-hint-flow" hidden>العرض السابق: تظليل متصل داخل النص.</p>
+        <div class="span-legend" id="span-legend" hidden></div>
+        <div class="raw-body" id="raw-text-split">يُحمَّل…</div>
+        <div class="raw-body raw-body-flow" id="raw-text-flow" hidden></div>
       </div>
     </div>`;
 
   initTabs(app);
-  initSiraView(app, p);
+  const siraCtx = { citations: data.citations || [], text: '' };
+  initSiraView(app, p, siraCtx);
   drawGraph(document.getElementById('graph'), data.neighbors);
 
   try {
@@ -790,45 +1042,253 @@ async function renderPerson(id) {
       api(`/api/person/${encodeURIComponent(id)}/text`),
       api(`/api/person/${encodeURIComponent(id)}/spans`).catch(() => ({ spans: data.spans || [] })),
     ]);
-    const box = document.getElementById('raw-text');
-    const spans = spanData.spans || data.spans || [];
-    box.innerHTML = highlightText(raw.text_body || '', spans);
-    const used = [...new Set(spans.filter((s) => s.label !== 'unlabeled').map((s) => s.label))];
+    const text = raw.text_body || '';
+    siraCtx.text = text;
+    const siraBox = app.querySelector('.sira-content');
+    if (siraBox && getSiraView() === 'narrative') {
+      siraBox.innerHTML = renderSiraContent(p, 'narrative', siraCtx);
+    }
+    const spans = relabelSpans(text, spanData.spans || data.spans || []);
+    const split = document.getElementById('raw-text-split');
+    const flow = document.getElementById('raw-text-flow');
+    if (split) split.innerHTML = renderRawReader(text, spans);
+    if (flow) flow.innerHTML = highlightText(text, spans);
+    const used = [...new Set(spans.map((s) => s.label).filter((label) => label && label !== 'unlabeled'))];
     const legend = document.getElementById('span-legend');
     if (legend && used.length) {
       legend.hidden = false;
       legend.innerHTML = used.map((label) =>
-        `<span class="span-key"><i class="${SPAN_CLASS[label] || 'span-other'}"></i>${esc(LABEL_AR[label] || label)}</span>`
+        `<span class="span-key">
+          <i class="${SPAN_CLASS[label] || 'span-other'}"></i>
+          <span><b>${esc(LABEL_AR[label] || label)}</b><em>${esc(LABEL_HINT[label] || '')}</em></span>
+        </span>`
       ).join('');
     }
     const lenEl = document.getElementById('raw-len');
-    if (lenEl) lenEl.textContent = `${fmt((raw.text_body || '').length)} حرف · `;
+    if (lenEl) lenEl.textContent = `${fmt(text.length)} حرف`;
     document.getElementById('copy-raw')?.addEventListener('click', async () => {
-      await navigator.clipboard.writeText(raw.text_body || '');
+      await navigator.clipboard.writeText(text);
       const btn = document.getElementById('copy-raw');
       btn.innerHTML = `${icon('check')} نُسخ`;
       setTimeout(() => { btn.innerHTML = `${icon('copy')} نسخ`; }, 2000);
     });
+    initRawViews(app);
   } catch (err) {
-    document.getElementById('raw-text').textContent = `تعذّر التحميل: ${err.message}`;
+    const split = document.getElementById('raw-text-split');
+    if (split) split.textContent = `تعذّر التحميل: ${err.message}`;
   }
 }
 
+const RAW_VIEW_KEY = 'isabah.rawView';
+
+function initRawViews(container) {
+  const buttons = container.querySelectorAll('[data-raw-view]');
+  if (!buttons.length) return;
+  const setView = (view) => {
+    const split = view !== 'flow';
+    container.querySelectorAll('[data-raw-view]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.rawView === (split ? 'split' : 'flow'));
+    });
+    const splitBox = container.querySelector('#raw-text-split');
+    const flowBox = container.querySelector('#raw-text-flow');
+    const hintSplit = container.querySelector('#raw-hint-split');
+    const hintFlow = container.querySelector('#raw-hint-flow');
+    if (splitBox) splitBox.hidden = !split;
+    if (flowBox) flowBox.hidden = split;
+    if (hintSplit) hintSplit.hidden = !split;
+    if (hintFlow) hintFlow.hidden = split;
+    try { sessionStorage.setItem(RAW_VIEW_KEY, split ? 'split' : 'flow'); } catch { /* ignore */ }
+  };
+  buttons.forEach((btn) => btn.addEventListener('click', () => setView(btn.dataset.rawView)));
+  let saved = 'split';
+  try { saved = sessionStorage.getItem(RAW_VIEW_KEY) || 'split'; } catch { /* ignore */ }
+  setView(saved);
+}
+
+const SENT_RE = /[^\n.؟!]+(?:[.؟!]+(?:\s*\[\s*\(\s*\d+\s*\)\s*\])?|\n+|$)/gu;
+
+const BATTLE_KW =
+  'بدر|أحد|الخندق|الأحزاب|خيبر|تبوك|حنين|الطائف|القادسية|اليرموك|الجمل|صفين|مؤتة|موتة|الحديبية|فتح مكة|يوم الفتح|اليمامة|أجنادين|نهاوند|الردة|بئر معونة|الرجيع|ذات الرقاع|النهروان|كربلاء|الحرة|جلولاء|مرج الصفر|مكة|بواط|الأبواء|العشيرة|سفوان|قينقاع|النضير|قريظة|المريسيع|المصطلق|أوطاس|فحل|المدائن|تستر|يوم الدار|ذات السلاسل|دومة الجندل';
+const SCHOLAR_KW =
+  'البخاري|مسلم|أبو داود|الترمذي|النسائي|ابن ماجه|أحمد|الحاكم|البغوي|ابن سعد|الواقدي|ابن إسحاق|ابن اسحاق|خليفة|الطبراني|الدارقطني|ابن حبان|ابن حبّان|ابن شاهين|البزار|أبو يعلى|البيهقي|ابن عساكر|الذهبي|ابن الكلبي|ابن قانع|الطبري|أبو نعيم|ابن مندة|ابن منده|ابن عبد البر|ابن الأثير|أبو موسى|الرشاطي|ابن فتحون|الهيثم|الكنى|أسد الغابة|الاستيعاب|التجريد|أبو زرعة|ابن أبي حاتم|ابن معين|يحيى بن معين|أحمد بن حنبل|الشافعي|مالك|النووي|المزي|المزّي|ابن أبي شيبة|الدولابي|ابن السكن|ابن خزيمة|أبو أحمد|وكيع|شعبة|سفيان|الزهري|ابن سيرين|الكلبي|تهذيب|تقريب|الكاشف|الحلية|الطبقات|الإصابة';
+const NISBA_KW =
+  'القرشي|الأنصاري|الأموي|الخزرجي|الأوسي|الدوسي|السلمي|العدوي|الزهري|التميمي|الليثي|الجهني|الغفاري|المزني|الخزاعي|الهذلي|الثقفي|العامري|المخزومي|الأسدي|الحارثي|البكري|الكلبي|الهمداني|الكندي|الأزدي|الطائي|الفهري|الجعفي|الكناني|الهلالي|السهمي|الجمحى|الجمحي|العبسي|الفزاري|الضبي|النهدي';
+
+const LABEL_RE = {
+  heading: /^\d+\s*[^\d\n]{0,12}\s*[-–—:]/u,
+  voice: /^قلت[:：]/u,
+  voiceMid: /(?:^|[.]\s+)قلت[:：]/u,
+  dispute: /اختلف(?:وا)? في اسمه|قيل اسمه|يقال اسمه|في اسمه أقوال|سُمّي|يسمّى|ويقال اسمه|مختلف في اسمه|اختلفوا في اسمه|على أكثر من \S+ قولا/u,
+  crossref: /يأتي في|سيأتي في|تقدم في|تقدمت في|مضى في|انظر[:：]?\s|ترجمه في|في الكنى|في النساء|كما سيأتي في ترجمت/u,
+  isnad: /ثنا |أخبرنا |حدثنا |أنبأنا |نا [أاإ]|(?:عن [^.\n]{2,36} ){2}عن /u,
+  matn: /قال رسول الل|قال النبي|سمعت رسول|عن النبي صل|فيما رواه عن النبي|رفعه[:：]/u,
+  death: /(?:^|[.،:]\s*|ثم |و)(?:مات |توفي|توفّي)|وفاته|مقتله|قُتل |قتل يوم|قتل في|لما قتل|قتل أبي|استشهد|مات سنة|مات في|حضره الموت|حضرته الوفاة|لما مات|بعد موته/u,
+  birth: /ولد |مولده|وُلد|ولدت |ولدته |ولد سنة/u,
+  age: /وهو ابن \S.{0,20}سن|وعمره|أتت عليه|عاش \S.{0,12}سن|مات وهو ابن|ثمانيا? و\S+ سن|ابن ثلاثين سنة|زدت على الثلاثين/u,
+  office: /استعمله|ولاه |ولّاه|أمّره|أمّر |أمير |قاض|عامل على|استعمل على|ولي |بعثه (?:النبي|أبو بكر|عمر|عثمان)|على البحرين|على اليمن|على مكة|على الكوفة|على البصرة|على الشام|على المدينة|على مصر/u,
+  family: /أمه |أبوه |أخوه |أخته |ابنه |ابنته |زوجته |زوجها |عمه |خالُ|خاله |بنوه |بناته |ولد له|أعقب|له عقب|وامرأته |تزوّجها|تزوجها |ابن أخي|ابن أخيه|أبو المترجم/u,
+  praise: /ثقة|ثبت |فاضل|من خيار|جليل|صدوق|حافظ |من كبار|له صحبة|أثبتت صحبته|من الصحابة|أحفظ|ألزمنا|أكثر الصحابة/u,
+  criticism: /لا يصح|لا يثبت|ليس بصحابي|ليست له صحبة|وهم |تصحيف|ضعيف|غلط|لا يعرف|مجهول|ليست له رواية|خطأ|وهل منه/u,
+  defense: /والصواب|والصحيح|فالجواب|وهذا وهم|يردّ عليه|والمعتمد/u,
+  poetry: /وقال الشاعر|من الطويل|من البسيط|من الوافر|من الكامل|من الرجز|من المنسرح|قال حسّان|أنشد|\[(?:الطويل|البسيط|الوافر|الكامل|الرجز|المنسرح)\]/u,
+  quran: /قوله تعالى|قال تعالى|الآية|﴿|القرآن|أقرأ/u,
+  footnote: /^\[\s*\(\s*\d+\s*\)\s*\]/u,
+  citationVerb: /ذكره |أخرجه |رواه |أسنده |أورده |قاله |حكاه |ونقل |في الصحيح|في السنن|في المسند|من طريق/u,
+  narration: /(?:^|[.]\s+)روى عنه |(?:^|[.]\s+)روى عن |يروي عن/u,
+  scholar: new RegExp(SCHOLAR_KW, 'u'),
+  battleAct: new RegExp(`(?:شهد|غزا|غزوة|حضر يوم|وقعة|شهد معه|غزا معه)\\s*.{0,24}(?:${BATTLE_KW})`, 'u'),
+  battleDay: new RegExp(`(?:غزوة|يوم|وقعة|فتح)\\s*(?:${BATTLE_KW})`, 'u'),
+  event: /أسر|سُبي|سبي |وفد على|وفادته|في وفد|سري[ةه]|هاجر إلى|هجرته|بايع|بيعة |جرح |جريح|أعتق|تزوج|زوّجه|زوجه النبي|حاصر|صلح الحديبية|أسلم أيام|أسلم يوم|أسلم قبل|قدم مهاجرا|سكن |نزل |استوطن|كان مقدمه|قدم المدينة|أسلم |صحب النبي|صحبته /u,
+  lifeVerb: /شهد|غزا|مات|توفي|أسلم|هاجر|روى|ذكره|أخرجه|قتل|ولاه|بايع|استشهد|وفد|سكن|نزل/u,
+  nisba: new RegExp(NISBA_KW, 'u'),
+};
+
+function labelQuote(text) {
+  const src = String(text || '').trim();
+  const hits = [];
+  const add = (label, score) => hits.push({ label, score });
+  const R = LABEL_RE;
+  if (R.heading.test(src) && src.length < 90) add('heading', 9);
+  if (R.voice.test(src) || R.voiceMid.test(src)) add('ibn_hajar_voice', 10);
+  if (R.dispute.test(src)) add('name_dispute', 9);
+  if (R.crossref.test(src) && src.length < 220) add('crossref', 8);
+  if (R.isnad.test(src)) add('isnad', 9);
+  if (R.matn.test(src)) add('hadith_matn', 9);
+  if (R.death.test(src)) add('death', 9);
+  if (R.birth.test(src)) add('birth', 9);
+  if (R.age.test(src)) add('age', 9);
+  if (R.office.test(src)) add('office', 8);
+  if (R.family.test(src)) add('family', 7);
+  if (R.praise.test(src) && !R.criticism.test(src)) add('praise', 6);
+  if (R.criticism.test(src)) add('criticism', 8);
+  if (R.defense.test(src) && !R.voice.test(src)) add('defense', 7);
+  if (R.poetry.test(src) && !R.lifeVerb.test(src) && !R.event.test(src) && !R.battleAct.test(src)) add('poetry', 9);
+  if (R.quran.test(src)) add('quran', 9);
+  if (R.footnote.test(src) || (src.length < 10 && /^\s*[«»[\]()\d]+\s*$/u.test(src))) add('editor_footnote', 6);
+  if ((R.citationVerb.test(src) || R.scholar.test(src) || R.narration.test(src)) && !R.voice.test(src) && !R.matn.test(src)) {
+    add('citation', 7);
+  }
+  if (R.battleAct.test(src)) add('battle', 8);
+  else if (R.battleDay.test(src) && !R.death.test(src) && !R.scholar.test(src)) add('battle', 8);
+  if (R.event.test(src) && !R.death.test(src)) add('event', 7);
+  const reportCue = R.lifeVerb.test(src) || R.citationVerb.test(src)
+    || R.scholar.test(src) || R.isnad.test(src) || R.narration.test(src)
+    || R.family.test(src);
+  const nasabHits = (src.match(/بن |بنت |ابن /gu) || []).length;
+  if (nasabHits >= 2 && !reportCue) add('nasab', 8);
+  else if (nasabHits >= 1 && src.length < 140 && !reportCue && R.nisba.test(src)) add('nasab', 6);
+  if (!hits.length) return src.length < 3 ? 'boilerplate' : 'unlabeled';
+  hits.sort((a, b) => b.score - a.score || a.label.localeCompare(b.label));
+  return hits[0].label;
+}
+
+function relabelSpans(text, spans) {
+  const source = String(text || '');
+  const local = splitSentencesLocal(source).map((part) => ({
+    start: part.start,
+    end: part.end,
+    quote: part.text,
+    label: labelQuote(part.text),
+  }));
+  if (local.length) return local;
+  return (spans || []).map((span) => ({
+    ...span,
+    label: labelQuote(span.quote || source.slice(span.start, span.end)),
+  }));
+}
+
 function highlightText(text, spans) {
-  const usable = (spans || [])
-    .filter((span) => span.label !== 'unlabeled' && span.end > span.start)
-    .sort((a, b) => a.start - b.start || (b.end - b.start) - (a.end - a.start));
-  let out = '';
+  const source = String(text || '');
+  if (!source) return '<p class="muted">لا نص</p>';
+  const sorted = [...(spans || [])]
+    .filter((span) => Number(span.end) > Number(span.start) && span.start >= 0 && span.end <= source.length)
+    .sort((a, b) => a.start - b.start);
+  let html = '';
   let cursor = 0;
-  for (const span of usable) {
+  for (const span of sorted) {
     if (span.start < cursor) continue;
-    out += esc(text.slice(cursor, span.start));
-    const cls = SPAN_CLASS[span.label] || 'span-other';
-    out += `<mark class="${cls}" title="${esc(LABEL_AR[span.label] || span.label)}">${esc(text.slice(span.start, span.end))}</mark>`;
+    if (span.start > cursor) html += esc(source.slice(cursor, span.start));
+    const slice = source.slice(span.start, span.end);
+    const label = span.label && span.label !== 'unlabeled' && span.label !== 'boilerplate' ? span.label : '';
+    if (label) {
+      const cls = SPAN_CLASS[label] || 'span-other';
+      const title = `${LABEL_AR[label] || label}${LABEL_HINT[label] ? ` — ${LABEL_HINT[label]}` : ''}`;
+      html += `<mark class="${cls}" title="${esc(title)}">${esc(slice)}</mark>`;
+    } else {
+      html += esc(slice);
+    }
     cursor = span.end;
   }
-  out += esc(text.slice(cursor));
+  if (cursor < source.length) html += esc(source.slice(cursor));
+  return html.replace(/\n/g, '<br>');
+}
+
+function splitSentencesLocal(text) {
+  const source = String(text || '');
+  const out = [];
+  for (const match of source.matchAll(SENT_RE)) {
+    const quote = match[0];
+    const trimmed = quote.trim();
+    if (!trimmed) continue;
+    const pad = quote.indexOf(trimmed);
+    out.push({
+      start: match.index + pad,
+      end: match.index + pad + trimmed.length,
+      text: trimmed,
+    });
+  }
   return out;
+}
+
+function blocksFromSpans(text, spans) {
+  const source = String(text || '');
+  const sorted = (spans || [])
+    .filter((span) => Number(span.end) > Number(span.start))
+    .sort((a, b) => a.start - b.start || (b.end - a.start) - (a.end - a.start));
+
+  const covered = [];
+  let cursor = 0;
+  const pushGap = (from, to) => {
+    const chunk = source.slice(from, to);
+    if (!chunk.trim()) return;
+    for (const part of splitSentencesLocal(chunk)) {
+      covered.push({ label: labelQuote(part.text), text: part.text });
+    }
+  };
+
+  for (const span of sorted) {
+    if (span.start > cursor) pushGap(cursor, span.start);
+    if (span.start < cursor) continue;
+    const slice = source.slice(span.start, span.end);
+    const parts = splitSentencesLocal(slice);
+    if (!parts.length) {
+      const trimmed = slice.trim();
+      if (trimmed) covered.push({ label: labelQuote(trimmed), text: trimmed });
+    } else {
+      for (const part of parts) {
+        covered.push({ label: labelQuote(part.text), text: part.text });
+      }
+    }
+    cursor = span.end;
+  }
+  if (cursor < source.length) pushGap(cursor, source.length);
+  if (!covered.length) {
+    return splitSentencesLocal(source).map((part) => ({ label: labelQuote(part.text), text: part.text }));
+  }
+  return covered;
+}
+
+function renderRawReader(text, spans) {
+  const blocks = blocksFromSpans(text, spans);
+  if (!blocks.length) return '<p class="muted">لا نص</p>';
+  return `<div class="raw-reader">${blocks.map((block) => {
+    const label = block.label && block.label !== 'unlabeled' ? block.label : '';
+    const cls = SPAN_CLASS[block.label] || 'span-plain';
+    const chip = label
+      ? `<span class="raw-chip" title="${esc(LABEL_HINT[label] || LABEL_AR[label])}">${esc(LABEL_AR[label])}</span>`
+      : '<span class="raw-chip raw-chip-empty" aria-hidden="true"></span>';
+    return `<p class="raw-block ${cls}${label ? '' : ' is-plain'}" data-label="${esc(block.label || 'unlabeled')}">${chip}<span class="raw-line">${esc(block.text)}</span></p>`;
+  }).join('')}</div>`;
 }
 
 function facetGrid(items, hrefFn) {
@@ -906,9 +1366,12 @@ async function renderCitationsPage() {
 
 function hasLifeContent(p) {
   const l = p.life;
+  const n = p.narration || {};
   return (l.companionship?.length || l.battles?.length || l.offices?.length ||
     l.residences?.length || l.family?.length || l.traits?.length || l.conversion?.length ||
-    l.birth?.year_hijri || l.death?.year_hijri);
+    l.events?.length || l.wounds?.length || l.ages?.length || l.possessions?.length ||
+    n.narrated_from?.length || n.narrated_to?.length || n.praise?.length ||
+    l.birth?.year_hijri || l.death?.year_hijri || (l.death?.notes || []).length);
 }
 
 /* ── Quality ── */

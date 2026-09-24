@@ -1,0 +1,14 @@
+{
+  "name": "hadith_count",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["count", "uncertain", "evidence"],
+    "properties": {
+      "count": { "type": ["integer", "null"] },
+      "uncertain": { "type": "boolean" },
+      "evidence": { "type": ["string", "null"] }
+    }
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/verdict.schema.json",
+  "title": "Scholarly verdict",
+  "description": "A jarh/ta'dil or companionship verdict extracted from one entry. Evidence is required.",
+  "type": "object",
+  "required": ["person_id", "key", "value", "source", "evidence", "confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "key": {
+      "type": "string",
+      "enum": ["thiqa", "daif", "majhul", "mukhtalaf", "not_companion"]
+    },
+    "value": { "type": "string", "minLength": 1 },
+    "source": { "$ref": "fact.schema.json#/$defs/source" },
+    "evidence": { "type": "string", "minLength": 1 },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 },
+    "about": { "type": ["string", "null"], "description": "Who the verdict is about if not the entry subject" }
+  }
+}

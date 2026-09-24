@@ -92,6 +92,19 @@ class AppendLog {
     this.stream.write(`${JSON.stringify(record)}\n`);
   }
 
+  /** Flush + fsync so a checkpoint is actually on disk. */
+  async flush() {
+    await new Promise((resolve, reject) => {
+      this.stream.write('', (err) => (err ? reject(err) : resolve()));
+    });
+    const fd = this.stream.fd;
+    if (typeof fd === 'number') {
+      await new Promise((resolve, reject) => {
+        fs.fsync(fd, (err) => (err ? reject(err) : resolve()));
+      });
+    }
+  }
+
   async close() {
     await new Promise((resolve) => this.stream.end(resolve));
   }

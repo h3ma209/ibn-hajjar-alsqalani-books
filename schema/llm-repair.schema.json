@@ -1,0 +1,26 @@
+{
+  "name": "evidence_repair",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["repairs"],
+    "properties": {
+      "repairs": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["id", "evidence"],
+          "properties": {
+            "id": { "type": "integer" },
+            "evidence": {
+              "type": ["string", "null"],
+              "description": "Verbatim span copied from the entry, or null if none exists"
+            }
+          }
+        }
+      }
+    }
+  }
+}

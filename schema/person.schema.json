@@ -47,6 +47,10 @@
         "volume": { "type": ["string", "null"] },
         "page_start": { "type": ["integer", "null"] },
         "page_end": { "type": ["integer", "null"] },
+        "pdf_page": {
+          "type": ["integer", "null"],
+          "description": "Printed PDF page when a page-map exists. Null until then."
+        },
         "char_len": { "type": "integer", "minimum": 0 },
         "marker": {
           "type": ["string", "null"],

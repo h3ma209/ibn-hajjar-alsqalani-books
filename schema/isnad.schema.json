@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://isabah-corpus.local/schema/isnad.schema.json",
+  "title": "Isnad chain",
+  "description": "Ordered transmitter names from one report inside an entry.",
+  "type": "object",
+  "required": ["person_id", "names", "source", "confidence"],
+  "additionalProperties": false,
+  "properties": {
+    "person_id": { "type": "string", "pattern": "^[a-z]+:\\d+:\\d+-\\d+(?:\\.\\d+)?$" },
+    "names": {
+      "type": "array",
+      "minItems": 2,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "subject_index": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Index in names[] of the entry subject, if present"
+    },
+    "source": { "$ref": "fact.schema.json#/$defs/source" },
+    "evidence": { "type": ["string", "null"] },
+    "confidence": { "type": "number", "minimum": 0, "maximum": 1 }
+  }
+}

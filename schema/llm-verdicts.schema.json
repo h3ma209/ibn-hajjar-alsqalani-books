@@ -1,0 +1,27 @@
+{
+  "name": "verdicts",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["verdicts"],
+    "properties": {
+      "verdicts": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["key", "value", "evidence"],
+          "properties": {
+            "key": {
+              "type": "string",
+              "enum": ["thiqa", "daif", "majhul", "mukhtalaf", "not_companion"]
+            },
+            "value": { "type": "string" },
+            "evidence": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

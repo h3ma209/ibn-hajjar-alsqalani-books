@@ -596,11 +596,18 @@ class Catalog {
 
   spansFor(personId) {
     if (!this.db) return [];
+    const { labelPassages, labelSentence } = require('../classify/spans');
+    const raw = this.db.prepare('SELECT text_body FROM raw WHERE person_id = ?').get(personId);
+    if (raw?.text_body) return labelPassages(personId, raw.text_body);
     return this.db
       .prepare(
         'SELECT start, end, label, quote, confidence FROM passage_labels WHERE person_id = ? ORDER BY start'
       )
-      .all(personId);
+      .all(personId)
+      .map((row) => ({
+        ...row,
+        label: row.quote ? labelSentence(row.quote) : row.label,
+      }));
   }
 
   edgesFor(personId, side) {

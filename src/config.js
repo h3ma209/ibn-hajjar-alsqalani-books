@@ -65,6 +65,18 @@ const PATHS = {
   names: path.join(DATA_DIR, 'names.jsonl'),
   events: path.join(DATA_DIR, 'events.jsonl'),
   passageLabels: path.join(DATA_DIR, 'passage-labels.jsonl'),
+  llmRepair: path.join(DATA_DIR, 'llm-repair.jsonl'),
+  llmKinds: path.join(DATA_DIR, 'llm-kinds.jsonl'),
+  llmSpans: path.join(DATA_DIR, 'llm-spans.jsonl'),
+  llmVerdicts: path.join(DATA_DIR, 'llm-verdicts.jsonl'),
+  llmIsnads: path.join(DATA_DIR, 'llm-isnads.jsonl'),
+  llmHadith: path.join(DATA_DIR, 'llm-hadith.jsonl'),
+  verdicts: path.join(DATA_DIR, 'verdicts.jsonl'),
+  isnads: path.join(DATA_DIR, 'isnads.jsonl'),
+  hadithRefs: path.join(DATA_DIR, 'hadith-refs.jsonl'),
+  timelines: path.join(DATA_DIR, 'timelines.jsonl'),
+  identityLinks: path.join(DATA_DIR, 'identity-links.jsonl'),
+  pageMap: path.join(DATA_DIR, 'page-map.jsonl'),
   facets: path.join(DERIVED_DIR, 'facets.json'),
   labelCoverage: path.join(REPORTS_DIR, 'label-coverage.json'),
   manifest: path.join(DATA_DIR, 'manifest.json'),
@@ -76,6 +88,9 @@ const PATHS = {
   qualityBaseline: path.join(CODE_ROOT, 'reports-baseline', 'quality.json'),
   qualityBaselineV2: path.join(CODE_ROOT, 'reports-baseline', 'quality.v2.json'),
   llmUsage: path.join(REPORTS_DIR, 'llm-usage.json'),
+  extractCheckpoint: path.join(REPORTS_DIR, 'extraction-checkpoint.json'),
+  extractPassCheckpoint: path.join(REPORTS_DIR, 'extract-pass-checkpoint.json'),
+  extractPassUsage: path.join(REPORTS_DIR, 'extract-pass-usage.json'),
 };
 
 function num(value, fallback) {
@@ -87,9 +102,14 @@ const LLM = {
   apiKey: process.env.OPENAI_API_KEY || null,
   baseUrl: (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1').replace(/\/+$/, ''),
   model: process.env.LLM_MODEL || 'gpt-4o-mini',
-  concurrency: Math.max(1, num(process.env.LLM_CONCURRENCY, 8)),
+  concurrency: Math.max(1, num(process.env.LLM_CONCURRENCY, 12)),
+  /** Narrow extract-pass schemas; higher fan-out than the v1 bio run. */
+  passConcurrency: Math.max(1, num(process.env.LLM_PASS_CONCURRENCY, 16)),
+  /** Persist resume state every N persons that actually hit the API. */
+  checkpointEvery: Math.max(1, num(process.env.LLM_CHECKPOINT_EVERY, 50)),
   /** p90 completion is ~630 tokens; 2048 leaves headroom without slowing generation. */
   maxTokens: Math.max(256, num(process.env.LLM_MAX_TOKENS, 2048)),
+  passMaxTokens: Math.max(128, num(process.env.LLM_PASS_MAX_TOKENS, 768)),
   maxCostUsd: num(process.env.LLM_MAX_COST, 15),
   priceInputPerMTok: num(process.env.LLM_PRICE_INPUT_PER_MTOK, 0.15),
   priceOutputPerMTok: num(process.env.LLM_PRICE_OUTPUT_PER_MTOK, 0.6),

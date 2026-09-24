@@ -1,0 +1,27 @@
+{
+  "name": "isnads",
+  "strict": true,
+  "schema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["isnads"],
+    "properties": {
+      "isnads": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["names", "subject_index", "evidence"],
+          "properties": {
+            "names": {
+              "type": "array",
+              "items": { "type": "string" }
+            },
+            "subject_index": { "type": ["integer", "null"] },
+            "evidence": { "type": ["string", "null"] }
+          }
+        }
+      }
+    }
+  }
+}
